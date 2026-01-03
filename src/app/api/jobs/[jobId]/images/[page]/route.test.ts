@@ -59,7 +59,6 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
 
     it('should serve image successfully', async () => {
         const jobId = 'test-img-success';
-        await fsp.mkdir(baseDir, { recursive: true });
         await fsp.writeFile(path.join(baseDir, 'page-001.jpg'), 'fake-image-data', 'utf8');
 
         globalJobStore.create({

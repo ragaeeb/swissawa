@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import ReactCrop, { type Crop } from 'react-image-crop';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,7 +23,7 @@ type Props = {
     jobId: string;
     pageNumber: number;
     initialCrop: CropBox | null;
-    onSave: (crop: CropBox) => Promise<void> | void;
+    onSave: (crop: CropBox) => Promise<boolean> | boolean;
 };
 
 const FULL_CROP: CropBox = { height: 1, width: 1, x: 0, y: 0 };
@@ -36,8 +36,6 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
         isFullCropBox(initial) ? undefined : cropBoxToPercentCrop(initial),
     );
     const [saving, setSaving] = useState(false);
-
-    const imgRef = useRef<HTMLImageElement | null>(null);
 
     const clipPath = useMemo(() => cropBoxToClipPathInset(normalizeCropBox(crop)), [crop]);
 
@@ -55,8 +53,10 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
     async function save() {
         setSaving(true);
         try {
-            await onSave(crop);
-            onOpenChange(false);
+            const ok = await onSave(crop);
+            if (ok) {
+                onOpenChange(false);
+            }
         } finally {
             setSaving(false);
         }
@@ -108,7 +108,6 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                                 {/* react-image-crop expects a plain <img /> */}
                                 {/* biome-ignore lint/performance/noImgElement: react-image-crop expects a plain <img> element */}
                                 <img
-                                    ref={imgRef}
                                     alt={`Page ${pageNumber}`}
                                     src={`/api/jobs/${encodeURIComponent(jobId)}/images/${pageNumber}`}
                                     className="block h-auto w-full select-none bg-white object-contain dark:bg-zinc-950"
@@ -130,7 +129,7 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                                 <Input
                                     id="crop-x"
                                     inputMode="decimal"
-                                    value={crop.x}
+                                    value={crop.x.toFixed(4)}
                                     onChange={(e) => setField('x', Number.parseFloat(e.target.value))}
                                 />
                             </div>
@@ -139,7 +138,7 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                                 <Input
                                     id="crop-y"
                                     inputMode="decimal"
-                                    value={crop.y}
+                                    value={crop.y.toFixed(4)}
                                     onChange={(e) => setField('y', Number.parseFloat(e.target.value))}
                                 />
                             </div>
@@ -148,7 +147,7 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                                 <Input
                                     id="crop-w"
                                     inputMode="decimal"
-                                    value={crop.width}
+                                    value={crop.width.toFixed(4)}
                                     onChange={(e) => setField('width', Number.parseFloat(e.target.value))}
                                 />
                             </div>
@@ -157,7 +156,7 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                                 <Input
                                     id="crop-h"
                                     inputMode="decimal"
-                                    value={crop.height}
+                                    value={crop.height.toFixed(4)}
                                     onChange={(e) => setField('height', Number.parseFloat(e.target.value))}
                                 />
                             </div>

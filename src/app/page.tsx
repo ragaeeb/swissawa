@@ -41,23 +41,42 @@ export default function Home() {
         return Math.min(100, Math.round((extractedPages / pages) * 100));
     }, [extractedPages, pages]);
 
+    type JobStatusResponse = {
+        job: {
+            status: string;
+            progress: { extractedPages?: number; totalPages?: number };
+            info?: Record<string, unknown> | null;
+        };
+    };
+
     useEffect(() => {
         if (!jobId) {
             return;
         }
 
         // Load a job snapshot on refresh (works even if in-memory job store was reset).
+        const controller = new AbortController();
         void (async () => {
-            const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
-            if (!res.ok) {
-                return;
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { signal: controller.signal });
+                if (!res.ok) {
+                    return;
+                }
+                const data = (await res.json()) as JobStatusResponse;
+                setStatus(data.job.status);
+                setExtractedPages(data.job.progress.extractedPages ?? 0);
+                setPages(data.job.progress.totalPages ?? null);
+                setMeta(data.job.info ?? null);
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    return;
+                }
             }
-            const data = (await res.json()) as any;
-            setStatus(data.job.status);
-            setExtractedPages(data.job.progress.extractedPages ?? 0);
-            setPages(data.job.progress.totalPages ?? null);
-            setMeta(data.job.info ?? null);
         })();
+
+        return () => {
+            controller.abort();
+        };
     }, [jobId]);
 
     useEffect(() => {
@@ -123,14 +142,25 @@ export default function Home() {
             setCrop(null);
             return;
         }
+        const controller = new AbortController();
         void (async () => {
-            const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/crop`);
-            if (!res.ok) {
-                return;
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/crop`, { signal: controller.signal });
+                if (!res.ok) {
+                    return;
+                }
+                const data = (await res.json()) as { crop: CropBox | null };
+                setCrop(data.crop ?? null);
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    return;
+                }
             }
-            const data = (await res.json()) as { crop: CropBox | null };
-            setCrop(data.crop ?? null);
         })();
+
+        return () => {
+            controller.abort();
+        };
     }, [jobId]);
 
     const uploadPdf = async (file: File) => {
@@ -286,11 +316,12 @@ export default function Home() {
                                 }
                                 const data = (await res.json()) as { crop: CropBox };
                                 setCrop(data.crop);
+                                return true;
                             } catch (err: unknown) {
                                 setError(err instanceof Error ? err.message : 'Failed to save crop');
                                 // Keep dialog open so user can retry.
                                 setCropOpen(true);
-                                throw err;
+                                return false;
                             }
                         }}
                     />
