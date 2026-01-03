@@ -10,7 +10,7 @@ describe('GET /api/jobs/[jobId]', () => {
 
     it('should return 404 if job not found', async () => {
         const request = new Request('http://localhost/api/jobs/missing');
-        const response = await GET(request, { params: { jobId: 'missing' } });
+        const response = await GET(request, { params: Promise.resolve({ jobId: 'missing' }) });
         const data = await response.json();
 
         expect(response.status).toBe(404);
@@ -29,7 +29,7 @@ describe('GET /api/jobs/[jobId]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -49,7 +49,7 @@ describe('GET /api/jobs/[jobId]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}?from=1&to=5`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         expect(response.status).toBe(409);
@@ -68,7 +68,7 @@ describe('GET /api/jobs/[jobId]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}?from=1&to=3`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -90,7 +90,7 @@ describe('GET /api/jobs/[jobId]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}?from=8`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -111,7 +111,7 @@ describe('GET /api/jobs/[jobId]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}?from=abc`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         // from=abc -> parseIntParam returns null -> defaults to 1 (if to is provided)

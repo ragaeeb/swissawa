@@ -3,8 +3,8 @@ import { formatSseEvent } from '@/server/sse/sse';
 
 export const runtime = 'nodejs';
 
-export const GET = async (_request: Request, { params }: { params: { jobId: string } }): Promise<Response> => {
-    const { jobId } = params;
+export const GET = async (_request: Request, { params }: { params: Promise<{ jobId: string }> }): Promise<Response> => {
+    const { jobId } = await params;
     const job = globalJobStore.get(jobId);
     const bus = globalJobStore.bus(jobId);
 

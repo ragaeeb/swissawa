@@ -3,7 +3,7 @@
 [![Build and Version](https://github.com/ragaeeb/swissawa/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/swissawa/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/ragaeeb/swissawa/graph/badge.svg?token=YVZ3UV0KQN)](https://codecov.io/gh/ragaeeb/swissawa)
 [![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/5554cc8f-07db-497d-875e-bbbce568717b.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/5554cc8f-07db-497d-875e-bbbce568717b)
-
+[![Vercel Deploy](https://deploy-badge.vercel.app/vercel/swissawa)](https://swissawa.vercel.app)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.3.5-000000?logo=bun&logoColor=white)](https://bun.sh/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Next.js](https://img.shields.io/badge/next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)

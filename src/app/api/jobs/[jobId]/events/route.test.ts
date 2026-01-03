@@ -6,7 +6,7 @@ describe('GET /api/jobs/[jobId]/events', () => {
     it('should return 404 if job not found', async () => {
         const jobId = 'missing-sse';
         const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const data = await response.json();
 
         expect(response.status).toBe(404);
@@ -26,7 +26,7 @@ describe('GET /api/jobs/[jobId]/events', () => {
 
         const bus = globalJobStore.bus(jobId)!;
         const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
 
         expect(response.status).toBe(200);
         expect(response.headers.get('Content-Type')).toBe('text/event-stream; charset=utf-8');
@@ -80,7 +80,7 @@ describe('GET /api/jobs/[jobId]/events', () => {
 
         const bus = globalJobStore.bus(jobId)!;
         const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
 
         const reader = response.body?.getReader();
         if (reader) {
@@ -119,7 +119,7 @@ describe('GET /api/jobs/[jobId]/events', () => {
 
         try {
             const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
-            const response = await GET(request, { params: { jobId } });
+            const response = await GET(request, { params: Promise.resolve({ jobId }) });
             const reader = response.body?.getReader();
             if (reader) {
                 await reader.read(); // snapshot
@@ -146,7 +146,7 @@ describe('GET /api/jobs/[jobId]/events', () => {
 
         const bus = globalJobStore.bus(jobId)!;
         const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
-        const response = await GET(request, { params: { jobId } });
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
         const reader = response.body?.getReader();
 
         if (reader) {

@@ -14,8 +14,8 @@ const parseIntParam = (v: string | null): number | null => {
     return n;
 };
 
-export const GET = async (request: Request, { params }: { params: { jobId: string } }): Promise<Response> => {
-    const { jobId } = params;
+export const GET = async (request: Request, { params }: { params: Promise<{ jobId: string }> }): Promise<Response> => {
+    const { jobId } = await params;
     const job = globalJobStore.get(jobId);
     if (!job) {
         return Response.json({ error: 'Job not found' }, { status: 404 });

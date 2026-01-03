@@ -9,10 +9,10 @@ export const runtime = 'nodejs';
 
 export const GET = async (
     _request: Request,
-    { params }: { params: { jobId: string; page: string } },
+    { params }: { params: Promise<{ jobId: string; page: string }> },
 ): Promise<Response> => {
-    const jobId = params.jobId;
-    const page = Number.parseInt(params.page, 10);
+    const { jobId, page: pageStr } = await params;
+    const page = Number.parseInt(pageStr, 10);
 
     if (!Number.isFinite(page) || page <= 0) {
         return new Response('Invalid page', { status: 400 });

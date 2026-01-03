@@ -30,7 +30,7 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
     it('should return 400 for invalid page number', async () => {
         const jobId = 'test-img';
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/abc`);
-        const response = await GET(request, { params: { jobId, page: 'abc' } });
+        const response = await GET(request, { params: Promise.resolve({ jobId, page: 'abc' }) });
 
         expect(response.status).toBe(400);
         const text = await response.text();
@@ -40,7 +40,7 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
     it('should return 400 for negative page number', async () => {
         const jobId = 'test-img';
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/-1`);
-        const response = await GET(request, { params: { jobId, page: '-1' } });
+        const response = await GET(request, { params: Promise.resolve({ jobId, page: '-1' }) });
 
         expect(response.status).toBe(400);
     });
@@ -48,7 +48,7 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
     it('should return 404 if image not resolved', async () => {
         const jobId = 'test-img';
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/999`);
-        const response = await GET(request, { params: { jobId, page: '999' } });
+        const response = await GET(request, { params: Promise.resolve({ jobId, page: '999' }) });
 
         expect(response.status).toBe(404);
         const text = await response.text();
@@ -67,7 +67,7 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
         });
 
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/1`);
-        const response = await GET(request, { params: { jobId, page: '1' } });
+        const response = await GET(request, { params: Promise.resolve({ jobId, page: '1' }) });
 
         expect(response.status).toBe(200);
         expect(response.headers.get('Content-Type')).toBe('image/jpeg');
