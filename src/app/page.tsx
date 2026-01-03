@@ -235,7 +235,11 @@ export default function Home() {
                             type="button"
                             variant="secondary"
                             onClick={() => {
-                                window.location.href = `/api/jobs/${encodeURIComponent(jobId)}/download`;
+                                window.open(
+                                    `/api/jobs/${encodeURIComponent(jobId)}/download`,
+                                    '_blank',
+                                    'noopener,noreferrer',
+                                );
                             }}
                         >
                             Download PDF (cropped)

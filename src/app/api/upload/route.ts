@@ -64,8 +64,9 @@ export const POST = async (request: Request): Promise<Response> => {
     }
 
     try {
-        console.info('[upload.start]', { maxBytes: readMaxUploadBytesFromEnv() });
-        const { fileFound, fileMime, fileBytes } = await handleUploadStream(body, request.headers);
+        const maxBytes = readMaxUploadBytesFromEnv();
+        console.info('[upload.start]', { maxBytes });
+        const { fileFound, fileMime, fileBytes } = await handleUploadStream(body, request.headers, maxBytes);
 
         if (!fileFound) {
             return Response.json({ error: 'No file uploaded' }, { status: 400 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { randomUUID } from 'node:crypto';
 import fsp from 'node:fs/promises';
 import { PDFDocument } from 'pdf-lib';
@@ -8,6 +8,12 @@ import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
 
 describe('GET /api/jobs/[jobId]/download', () => {
+    const createdJobDirs: string[] = [];
+
+    afterEach(async () => {
+        await Promise.all(createdJobDirs.splice(0).map((d) => fsp.rm(d, { force: true, recursive: true })));
+    });
+
     it('returns original PDF when no crop exists', async () => {
         const jobId = randomUUID();
         const pdf = await PDFDocument.create();
@@ -15,6 +21,7 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const bytes = await pdf.save();
 
         await fsp.mkdir(jobDir(jobId), { recursive: true });
+        createdJobDirs.push(jobDir(jobId));
         await fsp.writeFile(jobPdfPath(jobId), bytes);
         globalJobStore.create({
             id: jobId,
@@ -37,8 +44,6 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const { width, height } = page.getSize();
         expect(width).toBeCloseTo(200, 6);
         expect(height).toBeCloseTo(400, 6);
-
-        await fsp.rm(jobDir(jobId), { force: true, recursive: true });
     });
 
     it('returns cropped PDF when crop exists', async () => {
@@ -48,6 +53,7 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const bytes = await pdf.save();
 
         await fsp.mkdir(jobDir(jobId), { recursive: true });
+        createdJobDirs.push(jobDir(jobId));
         await fsp.writeFile(jobPdfPath(jobId), bytes);
         globalJobStore.create({
             id: jobId,
@@ -78,8 +84,6 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const cropBox = page.getCropBox();
         expect(cropBox.width).toBeCloseTo(100, 6);
         expect(cropBox.height).toBeCloseTo(100, 6);
-
-        await fsp.rm(jobDir(jobId), { force: true, recursive: true });
     });
 
     it('can shrink page size when requested (shrink=1)', async () => {
@@ -89,6 +93,7 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const bytes = await pdf.save();
 
         await fsp.mkdir(jobDir(jobId), { recursive: true });
+        createdJobDirs.push(jobDir(jobId));
         await fsp.writeFile(jobPdfPath(jobId), bytes);
         globalJobStore.create({
             id: jobId,
@@ -111,7 +116,5 @@ describe('GET /api/jobs/[jobId]/download', () => {
         const size = page.getSize();
         expect(size.width).toBeCloseTo(100, 6);
         expect(size.height).toBeCloseTo(100, 6);
-
-        await fsp.rm(jobDir(jobId), { force: true, recursive: true });
     });
 });

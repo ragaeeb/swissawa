@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { normalizeCropBox } from '@/lib/cropConvert';
+import { isFullCropBox, normalizeCropBox } from '@/lib/cropConvert';
 import type { CropBox } from '@/server/crop/crop';
 
 export async function cropPdfBytes(
@@ -11,7 +11,7 @@ export async function cropPdfBytes(
     const shrinkPage = Boolean(options?.shrinkPage);
 
     // If it's effectively full-page, return the original bytes.
-    if (normalized.x === 0 && normalized.y === 0 && normalized.width === 1 && normalized.height === 1) {
+    if (isFullCropBox(normalized)) {
         return pdfBytes;
     }
 

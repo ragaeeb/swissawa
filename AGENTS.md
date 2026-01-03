@@ -107,6 +107,7 @@ bun test
 Guideline:
 - Add unit tests for any parsing/formatting/path logic and for bug regressions (e.g., padding logic, directory inference).
 - Avoid component tests for now (no React Testing Library yet).
+- **Test style**: prefer `it('should ...')` (over `test(...)`) for consistency across the repo.
 
 ## Lessons learned / common pitfalls (read this first)
 
