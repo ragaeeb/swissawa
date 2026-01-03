@@ -126,3 +126,7 @@ Some options to make this serverless-friendly:
 ## License
 
 MIT — see [`LICENSE.md`](LICENSE.md).
+
+# Inspiration
+
+The name of the project comes from Suhayla: a food that is both sweet and sour at the same time.
