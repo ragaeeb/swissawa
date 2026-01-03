@@ -1,21 +1,34 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { randomUUID } from 'node:crypto';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
 
+let baseDir = '';
+
 mock.module('@/server/pdf/imageResolve', () => ({
     resolveJobImagePath: mock(({ pageNumber }: { pageNumber: number }) => {
         if (pageNumber === 999) {
             return Promise.resolve(null);
         }
-        const base = path.join(os.tmpdir(), 'swissawa-test-images');
-        return Promise.resolve(path.join(base, 'page-001.jpg'));
+        return Promise.resolve(path.join(baseDir, 'page-001.jpg'));
     }),
 }));
 
 describe('GET /api/jobs/[jobId]/images/[page]', () => {
+    beforeEach(async () => {
+        baseDir = await fsp.mkdtemp(path.join(os.tmpdir(), `swissawa-test-images-${process.pid}-${randomUUID()}-`));
+    });
+
+    afterEach(async () => {
+        if (baseDir) {
+            await fsp.rm(baseDir, { force: true, recursive: true });
+            baseDir = '';
+        }
+    });
+
     it('should return 400 for invalid page number', async () => {
         const jobId = 'test-img';
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/abc`);
@@ -46,9 +59,8 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
 
     it('should serve image successfully', async () => {
         const jobId = 'test-img-success';
-        const base = path.join(os.tmpdir(), 'swissawa-test-images');
-        await fsp.mkdir(base, { recursive: true });
-        await fsp.writeFile(path.join(base, 'page-001.jpg'), 'fake-image-data', 'utf8');
+        await fsp.mkdir(baseDir, { recursive: true });
+        await fsp.writeFile(path.join(baseDir, 'page-001.jpg'), 'fake-image-data', 'utf8');
 
         globalJobStore.create({
             id: jobId,
@@ -70,7 +82,5 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
         expect(blob.size).toBeGreaterThan(0);
         const text = await blob.text();
         expect(text).toBe('fake-image-data');
-
-        await fsp.rm(base, { force: true, recursive: true });
     });
 });

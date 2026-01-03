@@ -269,14 +269,24 @@ export default function Home() {
                         pageNumber={cropPage}
                         initialCrop={crop}
                         onSave={async (nextCrop) => {
-                            const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/crop`, {
-                                body: JSON.stringify({ crop: nextCrop }),
-                                headers: { 'content-type': 'application/json' },
-                                method: 'POST',
-                            });
-                            if (res.ok) {
+                            // Don't clobber upload errors; keep crop-save errors scoped.
+                            try {
+                                const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/crop`, {
+                                    body: JSON.stringify({ crop: nextCrop }),
+                                    headers: { 'content-type': 'application/json' },
+                                    method: 'POST',
+                                });
+                                if (!res.ok) {
+                                    const body = await res.json().catch(() => null);
+                                    throw new Error(body?.error ?? `Failed to save crop (${res.status})`);
+                                }
                                 const data = (await res.json()) as { crop: CropBox };
                                 setCrop(data.crop);
+                            } catch (err: unknown) {
+                                setError(err instanceof Error ? err.message : 'Failed to save crop');
+                                // Keep dialog open so user can retry.
+                                setCropOpen(true);
+                                throw err;
                             }
                         }}
                     />

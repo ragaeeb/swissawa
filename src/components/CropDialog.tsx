@@ -168,10 +168,26 @@ export function CropDialog({ open, onOpenChange, jobId, pageNumber, initialCrop,
                         </div>
 
                         <div className="flex gap-2">
-                            <Button type="button" variant="secondary" onClick={() => setCrop(FULL_CROP)}>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => {
+                                    const next = normalizeCropBox(FULL_CROP);
+                                    setCrop(next);
+                                    setUiCrop(undefined);
+                                }}
+                            >
                                 Reset
                             </Button>
-                            <Button type="button" variant="outline" onClick={() => setCrop(initialCrop ?? FULL_CROP)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    const next = normalizeCropBox(initialCrop ?? FULL_CROP);
+                                    setCrop(next);
+                                    setUiCrop(isFullCropBox(next) ? undefined : cropBoxToPercentCrop(next));
+                                }}
+                            >
                                 Revert
                             </Button>
                         </div>

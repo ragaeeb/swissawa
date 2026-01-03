@@ -65,9 +65,15 @@ export const DELETE = async (
         return Response.json({ error: err instanceof Error ? err.message : 'Invalid jobId' }, { status: 400 });
     }
 
-    const deletedHashes = await deleteHashIndexByJobId(jobId);
     globalJobStore.delete(jobId);
-    await fsp.rm(dir, { force: true, recursive: true });
+    try {
+        await fsp.rm(dir, { force: true, recursive: true });
+    } catch (err: unknown) {
+        console.error('[jobs.delete]', { dir, jobId, message: err instanceof Error ? err.message : String(err) });
+        return Response.json({ error: 'Failed to delete cached files' }, { status: 500 });
+    }
+
+    const deletedHashes = await deleteHashIndexByJobId(jobId);
 
     console.info('[jobs.delete]', { deletedHashes, dir, jobId });
     return Response.json({ deletedHashes, jobId, ok: true });

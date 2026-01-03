@@ -73,7 +73,8 @@ export async function GET(request: Request, ctx: { params: Promise<{ jobId: stri
     await fsp.writeFile(cachedPath, cropped);
     console.info('[jobs.download]', { cached: false, jobId, mode: 'cropped', path: cachedPath, shrinkPage });
 
-    return new Response(cropped, {
+    const body = Buffer.from(cropped);
+    return new Response(body, {
         headers: {
             'Content-Disposition': `attachment; filename="swissawa-${jobId}-cropped.pdf"`,
             'Content-Type': 'application/pdf',
