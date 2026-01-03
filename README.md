@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+`swissawa` is a full-stack Next.js app for building an **OCR pipeline for Arabic Islamic books** distributed as PDFs, including **post-processing** and QA tooling.
+
+[![Build and Version](https://github.com/ragaeeb/swissawa/actions/workflows/build.yml/badge.svg)](https://github.com/ragaeeb/swissawa/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/ragaeeb/swissawa/graph/badge.svg?token=YVZ3UV0KQN)](https://codecov.io/gh/ragaeeb/swissawa)
+[![wakatime](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/5554cc8f-07db-497d-875e-bbbce568717b.svg)](https://wakatime.com/badge/user/a0b906ce-b8e7-4463-8bce-383238df6d4b/project/5554cc8f-07db-497d-875e-bbbce568717b)
+[![Vercel Deploy](https://deploy-badge.vercel.app/vercel/swissawa)](https://swissawa.vercel.app)
+[![Bun](https://img.shields.io/badge/bun-%3E%3D1.3.5-000000?logo=bun&logoColor=white)](https://bun.sh/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Next.js](https://img.shields.io/badge/next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/react-19-61DAFB?logo=react&logoColor=000000)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/tailwindcss-4.1-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Biome](https://img.shields.io/badge/biome-2.3-60A5FA?logo=biome&logoColor=white)](https://biomejs.dev/)
+[![semantic-release](https://img.shields.io/badge/semantic--release-enabled-e10079?logo=semantic-release&logoColor=white)](https://semantic-release.gitbook.io/semantic-release/)
+[![ESNext](https://img.shields.io/badge/target-ESNext-111827)](https://www.typescriptlang.org/tsconfig/#target)
+[![Poppler](https://img.shields.io/badge/poppler-required-1f6feb)](https://poppler.freedesktop.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
+
+- Repo: [ragaeeb/swissawa](https://github.com/ragaeeb/swissawa)
 
 ## Getting Started
 
-First, run the development server:
+### Requirements
+
+- **Bun**: `>=1.3.5`
+- **Node.js**: `>=24` (used by Next.js tooling; Bun is the package manager)
+- **Poppler** (for fast PDF metadata + page rendering):
+  - `pdfinfo`
+  - `pdftocairo`
+
+On macOS:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+brew install poppler
+```
+
+### Run dev server
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+bun test
+```
 
-## Learn More
+### Formatting / linting
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+bun run lint
+bun run format
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Current functionality (baseline)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Drag & drop PDF upload** (streams to disk to support large PDFs)
+- **Server-side PDF → low-res JPEG pages** using Poppler (`pdftocairo`)
+- **Progress updates via SSE**
+- **Image serving via API routes**, displayed using `next/image` for optimized rendering
 
-## Deploy on Vercel
+Temporary files are written under `os.tmpdir()` (e.g. `.../T/swissawa/<jobId>/...` on macOS).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API (App Router)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `POST /api/upload`: upload a PDF (multipart/form-data), returns `{ jobId }`
+- `GET /api/jobs/:jobId/events`: SSE stream (`snapshot`, `pdf`, `progress`, `complete`, `error`)
+- `GET /api/jobs/:jobId`: job status; optional paging via `?from=&to=`
+- `GET /api/jobs/:jobId/images/:page`: serve a rendered JPEG page
+
+## Project goal / roadmap (high-level)
+
+The long-term intent is to support:
+
+- Arabic OCR workflows (layout-aware, RTL-friendly)
+- Post-processing (normalization, diacritics handling, tokenization, line/paragraph reconstruction)
+- QA tooling (diffs against ground truth, confidence heatmaps, error review queues)
+
+See `agents.md` for a guided architecture map and development conventions.
+
+## Future ideas (serverless-ready architecture)
+
+Today’s baseline implementation is optimized for local/dev and a traditional server:
+
+- Uses **Poppler** binaries (`pdfinfo`, `pdftocairo`)
+- Writes to `os.tmpdir()`
+- Uses an in-memory job store
+- Streams progress via **SSE**
+
+This is not a great fit for pure serverless platforms (e.g. Vercel/Netlify) due to ephemeral disk, cold starts/scale-out, execution time limits, and long-lived connections.
+
+Some options to make this serverless-friendly:
+
+- **Direct-to-storage upload + external worker (recommended)**:
+  - Use [UploadThing](https://uploadthing.com/) for browser → storage uploads (your server only authenticates/authorizes)
+  - Trigger background processing via a worker/queue (e.g. Trigger.dev) to:
+    - download the PDF
+    - render page images
+    - write progress + outputs to durable storage (S3/R2/UploadThing/etc.)
+  - Frontend reads progress from a DB/KV (polling or SSE that only reads state)
+
+- **Pure JS/WASM rendering in serverless**:
+  - Replace Poppler with a PDF renderer that runs without native binaries (often pdf.js-based)
+  - Still requires durable storage for the PDF + images and persistent job state
+
+- **Hybrid hosting**:
+  - Keep the Next.js web app on Vercel/Netlify, but run the extraction/OCR worker on a container VM (Fly.io/Render/Railway)
+  - Keep progress + artifacts in a DB/object storage so the UI remains stateless
+
+## License
+
+MIT — see [`LICENSE.md`](LICENSE.md).
