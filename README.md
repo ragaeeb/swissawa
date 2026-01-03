@@ -61,15 +61,28 @@ bun run format
 - **Server-side PDF → low-res JPEG pages** using Poppler (`pdftocairo`)
 - **Progress updates via SSE**
 - **Image serving via API routes**, displayed using `next/image` for optimized rendering
+- **Global crop**: draw a crop on one page and apply to all previews
+- **Download cropped PDF** (server-generated; preserves page size by default)
+- **Cleanup cached files** (delete uploaded PDF + extracted images)
+- **Deduplication**: reuse extracted images across re-uploads via SHA-256 content hashing
 
 Temporary files are written under `os.tmpdir()` (e.g. `.../T/swissawa/<jobId>/...` on macOS).
 
 ## API (App Router)
 
-- `POST /api/upload`: upload a PDF (multipart/form-data), returns `{ jobId }`
+- `POST /api/upload`: upload a PDF (multipart/form-data), returns `{ jobId, sha256, reused }`
 - `GET /api/jobs/:jobId/events`: SSE stream (`snapshot`, `pdf`, `progress`, `complete`, `error`)
 - `GET /api/jobs/:jobId`: job status; optional paging via `?from=&to=`
+- `DELETE /api/jobs/:jobId`: delete cached files for a job (temp dir + hash index) and evict in-memory state
 - `GET /api/jobs/:jobId/images/:page`: serve a rendered JPEG page
+- `GET /api/jobs/:jobId/crop`: get the saved crop (or `null`)
+- `POST /api/jobs/:jobId/crop`: set the saved crop (`{ crop: { x,y,width,height } }`, normalized 0..1)
+- `GET /api/jobs/:jobId/download`: download the original PDF if no crop, otherwise a cropped PDF
+  - Optional: `?shrink=1` to physically shrink pages (can make scanned PDFs look “lower quality” due to extra zoom)
+
+## Notes
+
+- **Upload size limit**: controlled by `SWISSAWA_MAX_UPLOAD_BYTES` (defaults to 64MB).
 
 ## Project goal / roadmap (high-level)
 
@@ -79,7 +92,7 @@ The long-term intent is to support:
 - Post-processing (normalization, diacritics handling, tokenization, line/paragraph reconstruction)
 - QA tooling (diffs against ground truth, confidence heatmaps, error review queues)
 
-See `agents.md` for a guided architecture map and development conventions.
+See `AGENTS.md` for a guided architecture map, pitfalls, and development conventions.
 
 ## Future ideas (serverless-ready architecture)
 
@@ -113,3 +126,7 @@ Some options to make this serverless-friendly:
 ## License
 
 MIT — see [`LICENSE.md`](LICENSE.md).
+
+# Inspiration
+
+The name of the project comes from Suhayla: a food that is both sweet and sour at the same time.

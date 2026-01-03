@@ -1,35 +1,34 @@
-import { describe, expect, it, mock } from 'bun:test';
-import { PassThrough } from 'node:stream';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { randomUUID } from 'node:crypto';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
 
-// Mock dependencies
-mock.module('node:fs', () => ({
-    default: {
-        constants: { R_OK: 4 },
-        createReadStream: mock(() => {
-            const stream = new PassThrough();
-            setTimeout(() => {
-                stream.write('fake-image-data');
-                stream.end();
-            }, 10);
-            return stream;
-        }),
-    },
-}));
-
-mock.module('node:fs/promises', () => ({ default: { access: mock(() => Promise.resolve()) } }));
+let baseDir = '';
 
 mock.module('@/server/pdf/imageResolve', () => ({
     resolveJobImagePath: mock(({ pageNumber }: { pageNumber: number }) => {
         if (pageNumber === 999) {
             return Promise.resolve(null);
         }
-        return Promise.resolve('/tmp/job/page-001.jpg');
+        return Promise.resolve(path.join(baseDir, 'page-001.jpg'));
     }),
 }));
 
 describe('GET /api/jobs/[jobId]/images/[page]', () => {
+    beforeEach(async () => {
+        baseDir = await fsp.mkdtemp(path.join(os.tmpdir(), `swissawa-test-images-${process.pid}-${randomUUID()}-`));
+    });
+
+    afterEach(async () => {
+        if (baseDir) {
+            await fsp.rm(baseDir, { force: true, recursive: true });
+            baseDir = '';
+        }
+    });
+
     it('should return 400 for invalid page number', async () => {
         const jobId = 'test-img';
         const request = new Request(`http://localhost/api/jobs/${jobId}/images/abc`);
@@ -60,6 +59,8 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
 
     it('should serve image successfully', async () => {
         const jobId = 'test-img-success';
+        await fsp.writeFile(path.join(baseDir, 'page-001.jpg'), 'fake-image-data', 'utf8');
+
         globalJobStore.create({
             id: jobId,
             info: undefined,

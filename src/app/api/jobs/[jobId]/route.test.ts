@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
+import { randomUUID } from 'node:crypto';
+import fsp from 'node:fs/promises';
+import { readHashIndex, writeHashIndex } from '@/server/jobs/hashIndex';
+import { jobDir } from '@/server/jobs/jobPaths';
 import { globalJobStore } from '@/server/jobs/jobStore';
-import { GET } from './route';
+import { DELETE, GET } from './route';
 
 describe('GET /api/jobs/[jobId]', () => {
     it('should return 404 if job not found', async () => {
@@ -113,5 +117,48 @@ describe('GET /api/jobs/[jobId]', () => {
         // Actually if both are null (from=abc and to=null), it returns just the job.
         expect(response.status).toBe(200);
         expect(data.images).toBeUndefined();
+    });
+});
+
+describe('DELETE /api/jobs/[jobId]', () => {
+    it('deletes the job dir, removes hash index entry, and evicts the in-memory job', async () => {
+        const jobId = randomUUID();
+        const hash = 'e'.repeat(64);
+
+        // Create a fake job dir to delete
+        const dir = jobDir(jobId);
+        await fsp.mkdir(dir, { recursive: true });
+        await fsp.writeFile(`${dir}/input.pdf`, 'fake', 'utf8');
+
+        // Create hash index entry
+        await writeHashIndex({ createdAtMs: Date.now(), hash, jobId });
+        expect(await readHashIndex(hash)).not.toBeNull();
+
+        // Create an in-memory job
+        globalJobStore.create({
+            id: jobId,
+            info: undefined,
+            outputDir: `${dir}/images`,
+            pdfPath: `${dir}/input.pdf`,
+            progress: { extractedPages: 0, totalPages: 1 },
+            status: 'uploaded',
+        });
+        expect(globalJobStore.get(jobId)).not.toBeUndefined();
+
+        const request = new Request(`http://localhost/api/jobs/${jobId}`, { method: 'DELETE' });
+        const response = await DELETE(request, { params: Promise.resolve({ jobId }) });
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.ok).toBe(true);
+        expect(data.deletedHashes).toEqual([hash]);
+
+        // In-memory job removed
+        expect(globalJobStore.get(jobId)).toBeUndefined();
+
+        // Hash index removed
+        expect(await readHashIndex(hash)).toBeNull();
+
+        // Dir removed
+        await expect(fsp.stat(dir)).rejects.toBeTruthy();
     });
 });
