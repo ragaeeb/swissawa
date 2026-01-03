@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { POST } from './route';
 
+interface TestContext {
+    triggerFile: boolean;
+    mime: string;
+    failStream: boolean;
+}
+
+const testContext: TestContext = { failStream: false, mime: 'application/pdf', triggerFile: false };
+
 // Mock dependencies
 mock.module('node:fs/promises', () => ({ default: { mkdir: mock(() => Promise.resolve()) } }));
 
@@ -11,15 +19,15 @@ mock.module('./route', () => {
     return {
         ...original,
         handleUploadStream: mock((_body: any, _headers: any, _pdfPath: string) => {
-            if (global.__TEST_FAIL_STREAM__) {
+            if (testContext.failStream) {
                 throw new Error('Stream error');
             }
-            if (!global.__TEST_TRIGGER_BUSBOY_FILE__) {
+            if (!testContext.triggerFile) {
                 return Promise.resolve({ fileFound: false });
             }
             return Promise.resolve({
                 fileFound: true,
-                fileMime: global.__TEST_MIME__ || 'application/pdf',
+                fileMime: testContext.mime,
                 fileWritePromise: Promise.resolve(),
             });
         }),
@@ -28,17 +36,11 @@ mock.module('./route', () => {
 
 mock.module('@/server/pdf/runner', () => ({ runPdfExtractionJob: mock(() => Promise.resolve()) }));
 
-declare global {
-    var __TEST_TRIGGER_BUSBOY_FILE__: boolean;
-    var __TEST_MIME__: string;
-    var __TEST_FAIL_STREAM__: boolean;
-}
-
 describe('POST /api/upload', () => {
     beforeEach(() => {
-        global.__TEST_TRIGGER_BUSBOY_FILE__ = false;
-        global.__TEST_MIME__ = 'application/pdf';
-        global.__TEST_FAIL_STREAM__ = false;
+        testContext.triggerFile = false;
+        testContext.mime = 'application/pdf';
+        testContext.failStream = false;
     });
 
     it('should return 400 if not multipart/form-data', async () => {
@@ -69,7 +71,7 @@ describe('POST /api/upload', () => {
     });
 
     it('should return 400 if no file uploaded', async () => {
-        global.__TEST_TRIGGER_BUSBOY_FILE__ = false;
+        testContext.triggerFile = false;
         const request = new Request('http://localhost/api/upload', {
             body: 'some content',
             headers: { 'content-type': 'multipart/form-data; boundary=---' },
@@ -84,8 +86,8 @@ describe('POST /api/upload', () => {
     });
 
     it('should return 400 if file is not a PDF', async () => {
-        global.__TEST_TRIGGER_BUSBOY_FILE__ = true;
-        global.__TEST_MIME__ = 'image/png';
+        testContext.triggerFile = true;
+        testContext.mime = 'image/png';
 
         const request = new Request('http://localhost/api/upload', {
             body: 'some content',
@@ -101,7 +103,7 @@ describe('POST /api/upload', () => {
     });
 
     it('should return 500 on stream error', async () => {
-        global.__TEST_FAIL_STREAM__ = true;
+        testContext.failStream = true;
 
         const request = new Request('http://localhost/api/upload', {
             body: 'some content',
@@ -117,8 +119,8 @@ describe('POST /api/upload', () => {
     });
 
     it('should return 200 and jobId on success', async () => {
-        global.__TEST_TRIGGER_BUSBOY_FILE__ = true;
-        global.__TEST_MIME__ = 'application/pdf';
+        testContext.triggerFile = true;
+        testContext.mime = 'application/pdf';
 
         const request = new Request('http://localhost/api/upload', {
             body: 'fake pdf content',

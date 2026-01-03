@@ -63,6 +63,10 @@ export const POST = async (request: Request): Promise<Response> => {
 
     const body = request.body;
     if (!body) {
+        globalJobStore.update(jobId, (j) => {
+            j.status = 'error';
+            j.error = 'Missing request body';
+        });
         return Response.json({ error: 'Missing request body' }, { status: 400 });
     }
 

@@ -33,10 +33,10 @@ export async function runWithConcurrency<T>(
         while (true) {
             const myIdx = idx;
             idx += 1;
-            const item = items[myIdx];
-            if (!item) {
+            if (myIdx >= items.length) {
                 return;
             }
+            const item = items[myIdx];
             await fn(item);
         }
     });

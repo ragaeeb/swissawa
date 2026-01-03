@@ -25,7 +25,13 @@ export const GET = async (request: Request, { params }: { params: Promise<{ jobI
     const from = parseIntParam(url.searchParams.get('from'));
     const to = parseIntParam(url.searchParams.get('to'));
 
+    const cacheHeaders = (): HeadersInit =>
+        job.status === 'complete' ? { 'Cache-Control': 'public, max-age=3600, immutable' } : {};
+
     if (from !== null || to !== null) {
+        if (from !== null && to !== null && from > to) {
+            return Response.json({ error: 'from must be <= to' }, { status: 400 });
+        }
         const totalPages = job.progress.totalPages;
         if (!totalPages) {
             return Response.json({ error: 'PDF page count not available yet' }, { status: 409 });
@@ -36,8 +42,8 @@ export const GET = async (request: Request, { params }: { params: Promise<{ jobI
         for (let p = start; p <= end; p += 1) {
             images.push({ pageNumber: p, url: jobImageUrl(jobId, p) });
         }
-        return Response.json({ images, job });
+        return Response.json({ images, job }, { headers: cacheHeaders() });
     }
 
-    return Response.json({ job });
+    return Response.json({ job }, { headers: cacheHeaders() });
 };

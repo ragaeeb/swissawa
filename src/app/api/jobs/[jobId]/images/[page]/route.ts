@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -27,10 +28,15 @@ export const GET = async (
         return new Response('Not found', { status: 404 });
     }
 
-    const nodeStream = fs.createReadStream(filePath);
-    const body = Readable.toWeb(nodeStream as any) as any;
+    try {
+        await fsp.access(filePath, fs.constants.R_OK);
+        const nodeStream = fs.createReadStream(filePath);
+        const body = Readable.toWeb(nodeStream as any) as any;
 
-    return new Response(body, {
-        headers: { 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Type': 'image/jpeg' },
-    });
+        return new Response(body, {
+            headers: { 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Type': 'image/jpeg' },
+        });
+    } catch {
+        return new Response('Not found', { status: 404 });
+    }
 };

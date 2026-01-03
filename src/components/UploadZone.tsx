@@ -66,6 +66,8 @@ export const UploadZone = ({ onFileSelected, isUploading, error }: UploadZonePro
                         if (file) {
                             handleFile(file);
                         }
+
+                        e.target.value = '';
                     }}
                 />
                 {error ? <div className="text-red-600 text-sm">{error}</div> : null}

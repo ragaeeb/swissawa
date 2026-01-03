@@ -93,19 +93,27 @@ export async function runPdfExtractionJob(params: RunExtractionParams): Promise<
     const ranges = createPageRanges(info.pages, chunkSize);
     const outputPrefix = path.join(job.outputDir, 'page');
 
-    await runWithConcurrency(ranges, concurrency, async (range) => {
-        const args = buildPdftocairoArgs({ inputPdfPath: job.pdfPath, options: undefined, outputPrefix, range });
-        await runCmd('pdftocairo', args);
+    try {
+        await runWithConcurrency(ranges, concurrency, async (range) => {
+            const args = buildPdftocairoArgs({ inputPdfPath: job.pdfPath, options: undefined, outputPrefix, range });
+            await runCmd('pdftocairo', args);
 
-        const completed = range.end - range.start + 1;
-        const updated = params.store.update(params.jobId, (j) => {
-            j.progress.extractedPages += completed;
+            const completed = range.end - range.start + 1;
+            const updated = params.store.update(params.jobId, (j) => {
+                j.progress.extractedPages += completed;
+            });
+            bus.emit('progress', { ...updated.progress });
         });
-        bus.emit('progress', { ...updated.progress });
-    });
 
-    const done = params.store.update(params.jobId, (j) => {
-        j.status = 'complete';
-    });
-    bus.emit('complete', done);
+        const done = params.store.update(params.jobId, (j) => {
+            j.status = 'complete';
+        });
+        bus.emit('complete', done);
+    } catch (err) {
+        params.store.update(params.jobId, (j) => {
+            j.status = 'error';
+            j.error = err instanceof Error ? err.message : 'Extraction failed';
+        });
+        throw err;
+    }
 }

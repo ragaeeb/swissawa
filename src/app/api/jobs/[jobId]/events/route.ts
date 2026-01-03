@@ -24,17 +24,22 @@ export const GET = async (_request: Request, { params }: { params: Promise<{ job
         start(controller) {
             const write = (s: string) => controller.enqueue(encoder.encode(s));
 
+            const closeStream = () => {
+                cleanup?.();
+                controller.close();
+            };
+
             write(formatSseEvent('snapshot', { job }));
 
             const onProgress = (progress: unknown) => write(formatSseEvent('progress', progress));
             const onPdf = (info: unknown) => write(formatSseEvent('pdf', info));
             const onComplete = (j: unknown) => {
                 write(formatSseEvent('complete', j));
-                controller.close();
+                closeStream();
             };
             const onError = (message: string) => {
                 write(formatSseEvent('error', { message }));
-                controller.close();
+                closeStream();
             };
 
             bus.on('progress', onProgress);

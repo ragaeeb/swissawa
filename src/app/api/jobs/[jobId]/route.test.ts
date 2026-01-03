@@ -1,13 +1,8 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
 
 describe('GET /api/jobs/[jobId]', () => {
-    beforeEach(() => {
-        // Clear store between tests if needed, but since it's a global singleton
-        // we'll just use unique IDs or rely on create.
-    });
-
     it('should return 404 if job not found', async () => {
         const request = new Request('http://localhost/api/jobs/missing');
         const response = await GET(request, { params: Promise.resolve({ jobId: 'missing' }) });

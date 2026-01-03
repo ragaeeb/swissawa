@@ -6,6 +6,7 @@ import { GET } from './route';
 // Mock dependencies
 mock.module('node:fs', () => ({
     default: {
+        constants: { R_OK: 4 },
         createReadStream: mock(() => {
             const stream = new PassThrough();
             setTimeout(() => {
@@ -16,6 +17,8 @@ mock.module('node:fs', () => ({
         }),
     },
 }));
+
+mock.module('node:fs/promises', () => ({ default: { access: mock(() => Promise.resolve()) } }));
 
 mock.module('@/server/pdf/imageResolve', () => ({
     resolveJobImagePath: mock(({ pageNumber }: { pageNumber: number }) => {

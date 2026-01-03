@@ -57,4 +57,43 @@ describe('JobStore', () => {
 
         expect(events.map((e) => e.event)).toEqual(['progress', 'complete']);
     });
+
+    it('should throw when creating job with duplicate id', () => {
+        const store = new JobStore();
+        const jobData = {
+            id: 'job-1',
+            info: undefined,
+            outputDir: '/tmp/out',
+            pdfPath: '/tmp/in.pdf',
+            progress: { extractedPages: 0, totalPages: undefined },
+            status: 'uploaded' as const,
+        };
+        store.create(jobData);
+        expect(() => store.create(jobData)).toThrow('Job already exists: job-1');
+    });
+
+    it('should throw when updating non-existent job', () => {
+        const store = new JobStore();
+        expect(() => store.update('non-existent', () => {})).toThrow('Job not found: non-existent');
+    });
+
+    it('should delete job and bus', () => {
+        const store = new JobStore();
+        store.create({
+            id: 'job-1',
+            info: undefined,
+            outputDir: '/tmp/out',
+            pdfPath: '/tmp/in.pdf',
+            progress: { extractedPages: 0, totalPages: undefined },
+            status: 'uploaded',
+        });
+
+        expect(store.get('job-1')).toBeTruthy();
+        expect(store.bus('job-1')).toBeTruthy();
+
+        store.delete('job-1');
+
+        expect(store.get('job-1')).toBeUndefined();
+        expect(store.bus('job-1')).toBeUndefined();
+    });
 });

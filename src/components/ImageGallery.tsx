@@ -4,7 +4,6 @@ import Image from 'next/image';
 
 interface ImageGalleryProps {
     jobId: string;
-    pages: number;
     extractedPages: number;
     previewPages: number[];
     onLoadMore: () => void;

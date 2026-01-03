@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ImageGallery } from '@/components/ImageGallery';
 import { StatusDisplay } from '@/components/StatusDisplay';
 import { UploadZone } from '@/components/UploadZone';
@@ -16,12 +16,68 @@ export default function Home() {
     const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
     const [previewCount, setPreviewCount] = useState<number>(24);
 
+    const esRef = useRef<EventSource | null>(null);
+
     const progressPct = useMemo(() => {
         if (!pages || pages <= 0) {
             return 0;
         }
         return Math.min(100, Math.round((extractedPages / pages) * 100));
     }, [extractedPages, pages]);
+
+    useEffect(() => {
+        if (!jobId) {
+            return;
+        }
+
+        if (esRef.current) {
+            esRef.current.close();
+        }
+
+        const es = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+        esRef.current = es;
+
+        es.addEventListener('snapshot', (ev) => {
+            const data = JSON.parse((ev as MessageEvent).data) as any;
+            setStatus(data.job.status);
+            setExtractedPages(data.job.progress.extractedPages ?? 0);
+            setPages(data.job.progress.totalPages ?? null);
+            setMeta(data.job.info ?? null);
+        });
+
+        es.addEventListener('pdf', (ev) => {
+            const data = JSON.parse((ev as MessageEvent).data) as any;
+            setMeta(data);
+            setPages((p) => p ?? (typeof data.pages === 'number' ? data.pages : null));
+        });
+
+        es.addEventListener('progress', (ev) => {
+            const data = JSON.parse((ev as MessageEvent).data) as any;
+            setExtractedPages(data.extractedPages ?? 0);
+            setPages((p) => data.totalPages ?? p);
+        });
+
+        es.addEventListener('complete', () => {
+            setStatus('complete');
+            es.close();
+        });
+
+        es.addEventListener('error', (ev) => {
+            try {
+                const data = JSON.parse((ev as MessageEvent).data) as any;
+                setError(data?.message ?? 'Error');
+            } catch {
+                setError('Error');
+            }
+            setStatus('error');
+            es.close();
+        });
+
+        return () => {
+            es.close();
+            esRef.current = null;
+        };
+    }, [jobId]);
 
     const uploadPdf = async (file: File) => {
         try {
@@ -45,39 +101,6 @@ export default function Home() {
             setJobId(body.jobId);
             setStatus('processing');
             setUploading(false);
-
-            const es = new EventSource(`/api/jobs/${encodeURIComponent(body.jobId)}/events`);
-            es.addEventListener('snapshot', (ev) => {
-                const data = JSON.parse((ev as MessageEvent).data) as any;
-                setStatus(data.job.status);
-                setExtractedPages(data.job.progress.extractedPages ?? 0);
-                setPages(data.job.progress.totalPages ?? null);
-                setMeta(data.job.info ?? null);
-            });
-            es.addEventListener('pdf', (ev) => {
-                const data = JSON.parse((ev as MessageEvent).data) as any;
-                setMeta(data);
-                setPages((p) => p ?? (typeof data.pages === 'number' ? data.pages : null));
-            });
-            es.addEventListener('progress', (ev) => {
-                const data = JSON.parse((ev as MessageEvent).data) as any;
-                setExtractedPages(data.extractedPages ?? 0);
-                setPages(data.totalPages ?? pages);
-            });
-            es.addEventListener('complete', () => {
-                setStatus('complete');
-                es.close();
-            });
-            es.addEventListener('error', (ev) => {
-                try {
-                    const data = JSON.parse((ev as MessageEvent).data) as any;
-                    setError(data?.message ?? 'Error');
-                } catch {
-                    setError('Error');
-                }
-                setStatus('error');
-                es.close();
-            });
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Upload failed');
             setStatus('error');
@@ -120,7 +143,6 @@ export default function Home() {
                 {jobId && pages ? (
                     <ImageGallery
                         jobId={jobId}
-                        pages={pages}
                         extractedPages={extractedPages}
                         previewPages={previewPages}
                         onLoadMore={() => setPreviewCount((c) => c + 24)}

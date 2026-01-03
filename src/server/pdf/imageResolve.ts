@@ -4,11 +4,14 @@ import { jobImageFileName } from '@/server/pdf/extract';
 
 export type ResolveJobImageParams = { outputDir: string; pageNumber: number; totalPages?: number };
 
-export function buildCandidateImageNames(
+export const buildCandidateImageNames = (
     pageNumber: number,
     totalPages?: number,
     inferredPadWidth?: number | null,
-): string[] {
+): string[] => {
+    if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
+        throw new Error(`pageNumber must be a positive integer (got ${pageNumber})`);
+    }
     const candidates: string[] = [];
 
     if (typeof inferredPadWidth === 'number' && inferredPadWidth > 0) {
@@ -29,7 +32,7 @@ export function buildCandidateImageNames(
 
     // De-dupe while preserving order
     return [...new Set(candidates)];
-}
+};
 
 export function inferPadWidthFromFileName(fileName: string): number | null {
     if (!fileName.startsWith('page-') || !fileName.endsWith('.jpg')) {

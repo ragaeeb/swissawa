@@ -1,12 +1,31 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { buildCandidateImageNames, inferPadWidthFromFileName, resolveJobImagePath } from '@/server/pdf/imageResolve';
 
-function tmpDir(name: string): string {
-    return path.join(os.tmpdir(), 'swissawa-tests', `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}`);
-}
+const testDirs: string[] = [];
+
+const tmpDir = (name: string): string => {
+    const dir = path.join(
+        os.tmpdir(),
+        'swissawa-tests',
+        `${name}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
+    testDirs.push(dir);
+    return dir;
+};
+
+afterEach(async () => {
+    for (const dir of testDirs) {
+        try {
+            await fsp.rm(dir, { force: true, recursive: true });
+        } catch {
+            // Ignore errors during cleanup
+        }
+    }
+    testDirs.length = 0;
+});
 
 describe('inferPadWidthFromFileName', () => {
     it('should infer width from poppler-style filenames', () => {
