@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
 import type { JobStore } from '@/server/jobs/jobStore';
 import { buildPdftocairoArgs } from '@/server/pdf/extract';
 import { parsePdfInfoOutput } from '@/server/pdf/pdfInfo';
@@ -74,9 +75,12 @@ export async function runPdfExtractionJob(params: RunExtractionParams): Promise<
     const chunkSize = params.chunkSize ?? 10;
     const concurrency = params.concurrency ?? defaultConcurrency();
 
+    console.info('[extract.start]', { chunkSize, concurrency, jobId: params.jobId, pdfPath: job.pdfPath });
+
     params.store.update(params.jobId, (j) => {
         j.status = 'processing';
     });
+    await writeJobSnapshot(params.store.get(params.jobId)!);
 
     await fs.mkdir(job.outputDir, { recursive: true });
 
@@ -87,6 +91,7 @@ export async function runPdfExtractionJob(params: RunExtractionParams): Promise<
         j.info = info;
         j.progress.totalPages = info.pages;
     });
+    await writeJobSnapshot(params.store.get(params.jobId)!);
     bus.emit('pdf', info);
     bus.emit('progress', { extractedPages: job.progress.extractedPages, totalPages: info.pages });
 
@@ -102,17 +107,25 @@ export async function runPdfExtractionJob(params: RunExtractionParams): Promise<
             const updated = params.store.update(params.jobId, (j) => {
                 j.progress.extractedPages += completed;
             });
+            await writeJobSnapshot(updated);
             bus.emit('progress', { ...updated.progress });
         });
 
         const done = params.store.update(params.jobId, (j) => {
             j.status = 'complete';
         });
+        await writeJobSnapshot(done);
         bus.emit('complete', done);
+        console.info('[extract.complete]', { extractedPages: done.progress.extractedPages, jobId: params.jobId });
     } catch (err) {
         params.store.update(params.jobId, (j) => {
             j.status = 'error';
             j.error = err instanceof Error ? err.message : 'Extraction failed';
+        });
+        await writeJobSnapshot(params.store.get(params.jobId)!);
+        console.error('[extract.error]', {
+            jobId: params.jobId,
+            message: err instanceof Error ? err.message : String(err),
         });
         throw err;
     }

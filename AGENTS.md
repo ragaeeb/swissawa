@@ -8,12 +8,15 @@ Repo: [ragaeeb/swissawa](https://github.com/ragaeeb/swissawa)
 
 `swissawa` aims to support an OCR workflow for **Arabic Islamic books** in PDF form, plus the post-processing and QA steps required to produce high-quality text.
 
-This repo currently includes a baseline “PDF → page images” pipeline:
+This repo currently includes a baseline “PDF → page images” pipeline, plus early “crop + download” tooling:
 
 - Upload a PDF (streamed to disk for large files)
 - Extract metadata + render pages to low-res JPEGs
 - Stream progress to the browser via SSE
 - Display page previews using `next/image`
+- Set a **global crop** (draw once, applied to all previews)
+- Download the **cropped PDF** from the server
+- Cleanup cached files (delete temp dir + dedupe index)
 
 ## Tech constraints / conventions
 
@@ -50,6 +53,21 @@ brew install poppler
    - `progress` updates
    - `complete` or `error`
 
+### Crop → apply to previews → download
+
+- Crop is stored as a normalized `CropBox` (`x,y,width,height` in **0..1**, top-left origin).
+- UI uses `react-image-crop`; server-side download uses `pdf-lib` to set `CropBox`/`TrimBox` (and optionally `MediaBox`).
+- Download endpoint: `GET /api/jobs/:jobId/download`
+  - Default preserves original page size (avoids “looks lower quality” surprises on scanned PDFs)
+  - Optional `?shrink=1` physically shrinks pages (viewer may auto-zoom more)
+
+### Cleanup
+
+- Cleanup endpoint: `DELETE /api/jobs/:jobId`
+  - Removes `os.tmpdir()/swissawa/<jobId>/...`
+  - Removes any `os.tmpdir()/swissawa/by-hash/<sha256>.json` records pointing at that jobId
+  - Evicts in-memory job state
+
 ### Image file naming gotcha (important)
 
 Poppler often writes images using **zero-padded page numbers**, e.g.:
@@ -66,8 +84,14 @@ The resolver in `src/server/pdf/imageResolve.ts` exists specifically to prevent 
   - `src/app/api/jobs/[jobId]/events/route.ts` (SSE)
   - `src/app/api/jobs/[jobId]/route.ts` (status)
   - `src/app/api/jobs/[jobId]/images/[page]/route.ts` (serve JPEG)
+  - `src/app/api/jobs/[jobId]/crop/route.ts` (get/set crop)
+  - `src/app/api/jobs/[jobId]/download/route.ts` (download original/cropped PDF)
 - **Job store**: `src/server/jobs/jobStore.ts`
 - **Temp paths**: `src/server/jobs/jobPaths.ts`
+- **Job snapshots**: `src/server/jobs/jobSnapshot.ts` (persist job state on disk for refresh/HMR)
+- **Dedupe index**: `src/server/jobs/hashIndex.ts` (sha256 → jobId)
+- **Crop persistence**: `src/server/crop/cropStore.ts`
+- **Crop PDF generation**: `src/server/pdf/cropPdf.ts`
 - **PDF parsing**: `src/server/pdf/pdfInfo.ts`
 - **PDF extraction**: `src/server/pdf/runner.ts`, `src/server/pdf/extract.ts`
 - **Image resolution**: `src/server/pdf/imageResolve.ts` (+ regression tests)
@@ -83,6 +107,24 @@ bun test
 Guideline:
 - Add unit tests for any parsing/formatting/path logic and for bug regressions (e.g., padding logic, directory inference).
 - Avoid component tests for now (no React Testing Library yet).
+
+## Lessons learned / common pitfalls (read this first)
+
+- **Poppler filename padding**: Poppler often writes `page-001.jpg`. Always resolve images via `src/server/pdf/imageResolve.ts` to avoid 404s after extraction.
+- **Dev refresh/HMR resets memory**: The in-memory job store can disappear; always keep filesystem fallbacks (job snapshot + image resolver).
+- **Deduplication needs cleanup**: If you delete a job dir but leave its `by-hash` record, future uploads will “reuse” a dead jobId. Cleanup must remove both.
+- **react-image-crop callback gotcha**: `onComplete(pixelCrop, percentCrop)`—using the wrong arg causes crop “jumping” on mouse-up.
+- **Crop units mismatch**: UI percent crop is **0..100**, server crop box is **0..1**. Conversions live in `src/lib/cropConvert.ts`.
+- **Thumbnails vs crop**: `object-cover` will “pre-crop” before `clip-path`. Use `object-contain` if you want the crop to visually match saved values.
+- **Cropped PDF “quality”**: Shrinking `MediaBox` makes viewers auto-zoom more; default download preserves page size and uses `TrimBox`/`CropBox`.
+
+## Latest achievements (so you know what’s already done)
+
+- **Upload + SSE progress** (App Router) with Poppler extraction (chunked + parallel).
+- **Persistent resume** via job snapshots on disk + hash-based dedupe.
+- **Global crop UI** using `react-image-crop` + server storage.
+- **Download cropped PDF** via `pdf-lib` (+ caching; optional `?shrink=1`).
+- **Cleanup endpoint + UI** to delete cached files and dedupe records.
 
 ## Performance notes
 

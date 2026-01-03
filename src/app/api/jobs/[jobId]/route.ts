@@ -1,3 +1,7 @@
+import * as fsp from 'node:fs/promises';
+import { deleteHashIndexByJobId } from '@/server/jobs/hashIndex';
+import { jobDir } from '@/server/jobs/jobPaths';
+import { readJobSnapshot } from '@/server/jobs/jobSnapshot';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { jobImageUrl } from '@/server/pdf/extract';
 
@@ -16,7 +20,7 @@ const parseIntParam = (v: string | null): number | null => {
 
 export const GET = async (request: Request, { params }: { params: Promise<{ jobId: string }> }): Promise<Response> => {
     const { jobId } = await params;
-    const job = globalJobStore.get(jobId);
+    const job = globalJobStore.get(jobId) ?? (await readJobSnapshot(jobId));
     if (!job) {
         return Response.json({ error: 'Job not found' }, { status: 404 });
     }
@@ -46,4 +50,25 @@ export const GET = async (request: Request, { params }: { params: Promise<{ jobI
     }
 
     return Response.json({ job }, { headers: cacheHeaders() });
+};
+
+export const DELETE = async (
+    _request: Request,
+    { params }: { params: Promise<{ jobId: string }> },
+): Promise<Response> => {
+    const { jobId } = await params;
+
+    let dir: string;
+    try {
+        dir = jobDir(jobId);
+    } catch (err: unknown) {
+        return Response.json({ error: err instanceof Error ? err.message : 'Invalid jobId' }, { status: 400 });
+    }
+
+    const deletedHashes = await deleteHashIndexByJobId(jobId);
+    globalJobStore.delete(jobId);
+    await fsp.rm(dir, { force: true, recursive: true });
+
+    console.info('[jobs.delete]', { deletedHashes, dir, jobId });
+    return Response.json({ deletedHashes, jobId, ok: true });
 };

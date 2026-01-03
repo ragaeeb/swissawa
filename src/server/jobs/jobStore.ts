@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import type { CropBox } from '@/server/crop/crop';
 import type { PdfInfo } from '@/server/pdf/pdfInfo';
 
 export type JobStatus = 'uploaded' | 'processing' | 'complete' | 'error';
@@ -11,6 +12,7 @@ export type Job = {
     status: JobStatus;
     pdfPath: string;
     outputDir: string;
+    crop?: CropBox;
     info?: PdfInfo;
     progress: JobProgress;
     error?: string;

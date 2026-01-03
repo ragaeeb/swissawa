@@ -1,31 +1,17 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { PassThrough } from 'node:stream';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
-
-// Mock dependencies
-mock.module('node:fs', () => ({
-    default: {
-        constants: { R_OK: 4 },
-        createReadStream: mock(() => {
-            const stream = new PassThrough();
-            setTimeout(() => {
-                stream.write('fake-image-data');
-                stream.end();
-            }, 10);
-            return stream;
-        }),
-    },
-}));
-
-mock.module('node:fs/promises', () => ({ default: { access: mock(() => Promise.resolve()) } }));
 
 mock.module('@/server/pdf/imageResolve', () => ({
     resolveJobImagePath: mock(({ pageNumber }: { pageNumber: number }) => {
         if (pageNumber === 999) {
             return Promise.resolve(null);
         }
-        return Promise.resolve('/tmp/job/page-001.jpg');
+        const base = path.join(os.tmpdir(), 'swissawa-test-images');
+        return Promise.resolve(path.join(base, 'page-001.jpg'));
     }),
 }));
 
@@ -60,6 +46,10 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
 
     it('should serve image successfully', async () => {
         const jobId = 'test-img-success';
+        const base = path.join(os.tmpdir(), 'swissawa-test-images');
+        await fsp.mkdir(base, { recursive: true });
+        await fsp.writeFile(path.join(base, 'page-001.jpg'), 'fake-image-data', 'utf8');
+
         globalJobStore.create({
             id: jobId,
             info: undefined,
@@ -80,5 +70,7 @@ describe('GET /api/jobs/[jobId]/images/[page]', () => {
         expect(blob.size).toBeGreaterThan(0);
         const text = await blob.text();
         expect(text).toBe('fake-image-data');
+
+        await fsp.rm(base, { force: true, recursive: true });
     });
 });
