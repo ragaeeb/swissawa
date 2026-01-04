@@ -1,10 +1,15 @@
 import { EventEmitter } from 'node:events';
 import type { CropBox } from '@/server/crop/crop';
+import type { OcrMeta } from '@/server/ocr/splitMacOcr';
 import type { PdfInfo } from '@/server/pdf/pdfInfo';
 
 export type JobStatus = 'uploaded' | 'processing' | 'complete' | 'error';
 
 export type JobProgress = { extractedPages: number; totalPages?: number };
+
+export type JobOcrStatus = 'idle' | 'running' | 'complete' | 'error';
+
+export type JobOcr = { status: JobOcrStatus; language?: string; error?: string; meta?: OcrMeta; updatedAtMs: number };
 
 export type Job = {
     id: string;
@@ -16,6 +21,10 @@ export type Job = {
     info?: PdfInfo;
     progress: JobProgress;
     error?: string;
+    // Optional; default behavior should treat missing as {status:'idle'}.
+    ocr?: JobOcr;
+    // Optional; informational only (dedupe is by content hash).
+    sourceUrl?: string;
 };
 
 export type JobEvents = {

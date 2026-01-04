@@ -1,3 +1,4 @@
+import { readJobSnapshot } from '@/server/jobs/jobSnapshot';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { formatSseEvent } from '@/server/sse/sse';
 
@@ -5,8 +6,29 @@ export const runtime = 'nodejs';
 
 export const GET = async (_request: Request, { params }: { params: Promise<{ jobId: string }> }): Promise<Response> => {
     const { jobId } = await params;
-    const job = globalJobStore.get(jobId);
-    const bus = globalJobStore.bus(jobId);
+    let job = globalJobStore.get(jobId);
+    let bus = globalJobStore.bus(jobId);
+
+    // If HMR/dev refresh cleared memory, recover from the on-disk snapshot.
+    if (!job || !bus) {
+        const snap = await readJobSnapshot(jobId);
+        if (snap) {
+            globalJobStore.create({
+                crop: snap.crop,
+                error: snap.error,
+                id: snap.id,
+                info: snap.info,
+                ocr: snap.ocr,
+                outputDir: snap.outputDir,
+                pdfPath: snap.pdfPath,
+                progress: snap.progress,
+                sourceUrl: snap.sourceUrl,
+                status: snap.status,
+            });
+            job = globalJobStore.get(jobId);
+            bus = globalJobStore.bus(jobId);
+        }
+    }
 
     if (!job || !bus) {
         return Response.json({ error: 'Job not found' }, { status: 404 });

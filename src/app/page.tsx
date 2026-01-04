@@ -3,14 +3,18 @@
 import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CropDialog } from '@/components/CropDialog';
-import { ImageGallery } from '@/components/ImageGallery';
+import { PageOcrTable } from '@/components/PageOcrTable';
 import { StatusDisplay } from '@/components/StatusDisplay';
 import { UploadZone } from '@/components/UploadZone';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { CropBox } from '@/server/crop/crop';
 
 export default function Home() {
     const [uploading, setUploading] = useState(false);
+    const [urlUploading, setUrlUploading] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState('');
     const [jobId, setJobId] = useState<string | null>(null);
     const [status, setStatus] = useState<string>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -23,6 +27,16 @@ export default function Home() {
     const [cropOpen, setCropOpen] = useState(false);
 
     const esRef = useRef<EventSource | null>(null);
+
+    useEffect(() => {
+        // Use query param as initial state (shareable), but avoid useSearchParams to keep build/prerender happy.
+        try {
+            const u = new URL(window.location.href).searchParams.get('url') ?? '';
+            setPdfUrl(u);
+        } catch {
+            // ignore
+        }
+    }, []);
 
     useEffect(() => {
         if (jobId) {
@@ -172,6 +186,9 @@ export default function Home() {
             setPages(null);
             setMeta(null);
             setExtractedPages(0);
+            setCrop(null);
+            setCropOpen(false);
+            setCropPage(null);
 
             const form = new FormData();
             form.append('file', file);
@@ -190,6 +207,52 @@ export default function Home() {
             setError(err instanceof Error ? err.message : 'Upload failed');
             setStatus('error');
             setUploading(false);
+        }
+    };
+
+    const uploadPdfUrl = async () => {
+        const url = pdfUrl.trim();
+        if (!url) {
+            return;
+        }
+        try {
+            try {
+                const u = new URL(window.location.href);
+                u.searchParams.set('url', url);
+                window.history.replaceState(null, '', u.toString());
+            } catch {
+                // ignore
+            }
+
+            setError(null);
+            setUrlUploading(true);
+            setStatus('uploading');
+            setJobId(null);
+            setPages(null);
+            setMeta(null);
+            setExtractedPages(0);
+            setCrop(null);
+            setCropOpen(false);
+            setCropPage(null);
+
+            const resp = await fetch('/api/upload-url', {
+                body: JSON.stringify({ url }),
+                headers: { 'content-type': 'application/json' },
+                method: 'POST',
+            });
+            if (!resp.ok) {
+                const body = await resp.json().catch(() => null);
+                throw new Error(body?.error ?? `URL upload failed (${resp.status})`);
+            }
+            const body = (await resp.json()) as { jobId: string };
+            setJobId(body.jobId);
+            localStorage.setItem('swissawa:lastJobId', body.jobId);
+            setStatus('processing');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'URL upload failed');
+            setStatus('error');
+        } finally {
+            setUrlUploading(false);
         }
     };
 
@@ -237,7 +300,7 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-zinc-50 font-sans text-zinc-950 dark:bg-black dark:text-zinc-50">
-            <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-12">
+            <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8">
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col gap-1">
                         <h1 className="font-semibold text-2xl tracking-tight">PDF → images</h1>
@@ -245,7 +308,35 @@ export default function Home() {
                             Drag & drop a PDF. We’ll upload it and stream extraction progress via SSE.
                         </p>
                     </div>
-                    <Image className="opacity-80 dark:invert" src="/icon.png" alt="Swissawa" width={40} height={40} />
+                </div>
+
+                <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+                    <Label htmlFor="pdf-url">PDF URL</Label>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                            id="pdf-url"
+                            placeholder="https://example.com/book.pdf"
+                            value={pdfUrl}
+                            onChange={(e) => setPdfUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    void uploadPdfUrl();
+                                }
+                            }}
+                        />
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={uploadPdfUrl}
+                            disabled={urlUploading || uploading}
+                        >
+                            {urlUploading ? 'Fetching…' : 'Fetch & process'}
+                        </Button>
+                    </div>
+                    <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                        Downloads on the server and deduplicates by PDF content hash.
+                    </div>
                 </div>
 
                 <UploadZone onFileSelected={uploadPdf} isUploading={uploading} error={error} />
@@ -281,8 +372,9 @@ export default function Home() {
                 ) : null}
 
                 {jobId && pages ? (
-                    <ImageGallery
+                    <PageOcrTable
                         jobId={jobId}
+                        pages={pages}
                         extractedPages={extractedPages}
                         previewPages={previewPages}
                         onLoadMore={() => setPreviewCount((c) => c + 24)}

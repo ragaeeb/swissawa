@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
+import { randomUUID } from 'node:crypto';
+import * as fsp from 'node:fs/promises';
+import { jobDir, jobImagesDir, jobPdfPath } from '@/server/jobs/jobPaths';
+import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
 import { globalJobStore } from '@/server/jobs/jobStore';
 import { GET } from './route';
 
 describe('GET /api/jobs/[jobId]/events', () => {
+    const createdJobIds: string[] = [];
     it('should return 404 if job not found', async () => {
         const jobId = 'missing-sse';
         const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
@@ -155,6 +160,48 @@ describe('GET /api/jobs/[jobId]/events', () => {
 
             // After cancel, emitting events should not cause any issues (bus listeners removed)
             expect(() => bus.emit('progress', { extractedPages: 1, totalPages: 10 })).not.toThrow();
+        }
+    });
+
+    it('should recover from snapshot if job store was reset (dev HMR regression)', async () => {
+        const jobId = randomUUID();
+        createdJobIds.push(jobId);
+        await fsp.mkdir(jobDir(jobId), { recursive: true });
+        await fsp.writeFile(jobPdfPath(jobId), '%PDF-1.7 fake', 'utf8');
+
+        const job = globalJobStore.create({
+            id: jobId,
+            info: undefined,
+            outputDir: jobImagesDir(jobId),
+            pdfPath: jobPdfPath(jobId),
+            progress: { extractedPages: 0, totalPages: 10 },
+            status: 'processing',
+        });
+        await writeJobSnapshot(job);
+
+        // Simulate store reset
+        globalJobStore.delete(jobId);
+
+        const request = new Request(`http://localhost/api/jobs/${jobId}/events`);
+        const response = await GET(request, { params: Promise.resolve({ jobId }) });
+
+        expect(response.status).toBe(200);
+        const reader = response.body?.getReader();
+        expect(reader).toBeDefined();
+        if (!reader) {
+            return;
+        }
+        const { value } = await reader.read();
+        const s = new TextDecoder().decode(value);
+        expect(s).toContain('event: snapshot');
+        expect(s).toContain(`"id":"${jobId}"`);
+        await reader.cancel();
+    });
+
+    afterEach(async () => {
+        for (const id of createdJobIds.splice(0)) {
+            globalJobStore.delete(id);
+            await fsp.rm(jobDir(id), { force: true, recursive: true });
         }
     });
 });

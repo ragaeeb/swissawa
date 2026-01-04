@@ -13,6 +13,8 @@ interface ImageGalleryProps {
     canLoadMore: boolean;
     crop: CropBox | null;
     onCropPage: (pageNumber: number) => void;
+    onSelectPage?: (pageNumber: number) => void;
+    selectedPage?: number | null;
 }
 
 export const ImageGallery = ({
@@ -23,6 +25,8 @@ export const ImageGallery = ({
     canLoadMore,
     crop,
     onCropPage,
+    onSelectPage,
+    selectedPage,
 }: ImageGalleryProps) => {
     const clipPath = crop ? cropBoxToClipPathInset(crop) : undefined;
 
@@ -38,10 +42,28 @@ export const ImageGallery = ({
                         key={p}
                         className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
                     >
-                        <div className="flex items-center justify-between border-zinc-200 border-b px-3 py-2 text-xs dark:border-zinc-800">
-                            <div className="font-medium">Page {p}</div>
-                            <div className="text-zinc-600 dark:text-zinc-400">
-                                {p <= extractedPages ? 'ready' : 'pending'}
+                        <div className="flex items-center justify-between gap-2 border-zinc-200 border-b px-3 py-2 text-xs dark:border-zinc-800">
+                            <div className="flex items-center gap-2">
+                                <div className="font-medium">Page {p}</div>
+                                {selectedPage === p ? (
+                                    <div className="rounded bg-zinc-900 px-1.5 py-0.5 text-white dark:bg-zinc-100 dark:text-black">
+                                        selected
+                                    </div>
+                                ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="text-zinc-600 dark:text-zinc-400">
+                                    {p <= extractedPages ? 'ready' : 'pending'}
+                                </div>
+                                {p <= extractedPages ? (
+                                    <button
+                                        type="button"
+                                        className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+                                        onClick={() => onCropPage(p)}
+                                    >
+                                        Crop
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                         <div className="relative aspect-[3/4]">
@@ -49,8 +71,8 @@ export const ImageGallery = ({
                                 <button
                                     type="button"
                                     className="absolute inset-0"
-                                    onClick={() => onCropPage(p)}
-                                    aria-label={`Crop from page ${p}`}
+                                    onClick={() => onSelectPage?.(p)}
+                                    aria-label={`Select page ${p}`}
                                 >
                                     <Image
                                         alt={`Page ${p}`}

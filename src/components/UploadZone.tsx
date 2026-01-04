@@ -33,7 +33,7 @@ export const UploadZone = ({ onFileSelected, isUploading, error }: UploadZonePro
         <button
             type="button"
             className={[
-                'w-full rounded-xl border border-dashed p-8 transition-colors',
+                'w-full rounded-xl border border-dashed p-6 transition-colors',
                 isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-300 bg-white',
                 'dark:border-zinc-700 dark:bg-zinc-950',
             ].join(' ')}

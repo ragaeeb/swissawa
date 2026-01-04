@@ -20,7 +20,7 @@
     },
     "description": "OCR pipeline + post-processing for Arabic Islamic books in PDF (PDF upload, page extraction, progress via SSE).",
     "devDependencies": {
-        "@biomejs/biome": "2.3.10",
+        "@biomejs/biome": "2.3.11",
         "@semantic-release/changelog": "^6.0.3",
         "@semantic-release/git": "^10.0.1",
         "@tailwindcss/postcss": "^4.1.18",
