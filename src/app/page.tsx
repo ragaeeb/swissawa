@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CropDialog } from '@/components/CropDialog';
 import { PageOcrTable } from '@/components/PageOcrTable';

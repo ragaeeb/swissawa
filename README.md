@@ -23,15 +23,25 @@
 ### Requirements
 
 - **Bun**: `>=1.3.5`
-- **Node.js**: `>=24` (used by Next.js tooling; Bun is the package manager)
-- **Poppler** (for fast PDF metadata + page rendering):
-  - `pdfinfo`
-  - `pdftocairo`
+- **Node.js**: `>=24`
+- **Poppler** (PDF rendering): `pdfinfo`, `pdftocairo`
+- **macOCR** (Arabic OCR): macOS Vision-based CLI tool
+- **Surya OCR** (optional): ML-based OCR with GPU acceleration
 
 On macOS:
 
 ```bash
 brew install poppler
+```
+
+### Optional: Surya OCR Setup
+
+For ML-based OCR with GPU (MPS) acceleration:
+
+```bash
+python3 -m venv ~/surya-env
+source ~/surya-env/bin/activate
+pip install surya-ocr
 ```
 
 ### Run dev server
@@ -48,80 +58,52 @@ Open `http://localhost:3000`.
 bun test
 ```
 
-### Formatting / linting
+## Current functionality
 
-```bash
-bun run lint
-bun run format
-```
-
-## Current functionality (baseline)
-
-- **Drag & drop PDF upload** (streams to disk to support large PDFs)
-- **Server-side PDF → low-res JPEG pages** using Poppler (`pdftocairo`)
-- **Progress updates via SSE**
-- **Image serving via API routes**, displayed using `next/image` for optimized rendering
-- **Global crop**: draw a crop on one page and apply to all previews
-- **Download cropped PDF** (server-generated; preserves page size by default)
-- **Cleanup cached files** (delete uploaded PDF + extracted images)
-- **Deduplication**: reuse extracted images across re-uploads via SHA-256 content hashing
-
-Temporary files are written under `os.tmpdir()` (e.g. `.../T/swissawa/<jobId>/...` on macOS).
+- **Flexible PDF Ingest**: Upload via drag & drop or provide a remote URL for server-side download.
+- **Fast Page Extraction**: Parallelized PDF-to-JPEG rendering using Poppler.
+- **Global Cropping**: Define a crop box once and apply it to the entire book.
+- **Dual OCR Engines**: Choose between macOCR (Vision), Surya (ML), or run both in parallel.
+- **Engine Selection UI**: Dropdown to select "Both Engines", "macOCR Only", or "Surya Only".
+- **GPU Acceleration**: Surya uses MPS (Metal) on M-series Macs with automatic CPU fallback.
+- **Side-by-Side Comparison**: When running both engines, results appear in adjacent columns for comparison.
+- **Real-time Feedback**: SSE-powered progress bars showing actual percentages for each engine.
+- **Deduplication**: SHA-256 hashing avoids re-processing identical files.
+- **Arabic-First UI**: Optimized typography using `IBM Plex Sans Arabic` and RTL-aware layout.
 
 ## API (App Router)
 
-- `POST /api/upload`: upload a PDF (multipart/form-data), returns `{ jobId, sha256, reused }`
-- `GET /api/jobs/:jobId/events`: SSE stream (`snapshot`, `pdf`, `progress`, `complete`, `error`)
-- `GET /api/jobs/:jobId`: job status; optional paging via `?from=&to=`
-- `DELETE /api/jobs/:jobId`: delete cached files for a job (temp dir + hash index) and evict in-memory state
-- `GET /api/jobs/:jobId/images/:page`: serve a rendered JPEG page
-- `GET /api/jobs/:jobId/crop`: get the saved crop (or `null`)
-- `POST /api/jobs/:jobId/crop`: set the saved crop (`{ crop: { x,y,width,height } }`, normalized 0..1)
-- `GET /api/jobs/:jobId/download`: download the original PDF if no crop, otherwise a cropped PDF
-  - Optional: `?shrink=1` to physically shrink pages (can make scanned PDFs look “lower quality” due to extra zoom)
+### Ingest & Jobs
+- `POST /api/upload`: Upload PDF (multipart).
+- `POST /api/upload-url`: Provide a PDF URL to fetch.
+- `GET /api/jobs/:jobId`: Job status and metadata.
+- `GET /api/jobs/:jobId/events`: Extraction progress (SSE).
+- `DELETE /api/jobs/:jobId`: Cleanup all files and state.
 
-## Notes
+### Images & Crop
+- `GET /api/jobs/:jobId/images/:page`: Serve rendered JPEG.
+- `POST /api/jobs/:jobId/crop`: Save global crop.
+- `GET /api/jobs/:jobId/download`: Download cropped PDF.
 
-- **Upload size limit**: controlled by `SWISSAWA_MAX_UPLOAD_BYTES` (defaults to 64MB).
+### OCR (macOCR)
+- `POST /api/jobs/:jobId/ocr`: Trigger `macOCR` process.
+- `GET /api/jobs/:jobId/ocr`: Check OCR status.
+- `GET /api/jobs/:jobId/ocr/events`: OCR progress stream (SSE).
+- `GET /api/jobs/:jobId/ocr/pages/:page`: Fetch extracted text for a specific page.
 
-## Project goal / roadmap (high-level)
+### OCR (Surya)
+- `POST /api/jobs/:jobId/surya`: Trigger Surya OCR process.
+- `GET /api/jobs/:jobId/surya`: Check Surya status.
+- `GET /api/jobs/:jobId/surya/events`: Surya progress stream (SSE).
+- `GET /api/jobs/:jobId/surya/pages/:page`: Fetch Surya text for a specific page.
 
-The long-term intent is to support:
+## Roadmap
 
-- Arabic OCR workflows (layout-aware, RTL-friendly)
-- Post-processing (normalization, diacritics handling, tokenization, line/paragraph reconstruction)
-- QA tooling (diffs against ground truth, confidence heatmaps, error review queues)
+- Layout-aware OCR (preserving columns/paragraphs).
+- Text post-processing (normalization, diacritics).
+- QA/diffing tools for ground truth verification.
 
-See `AGENTS.md` for a guided architecture map, pitfalls, and development conventions.
-
-## Future ideas (serverless-ready architecture)
-
-Today’s baseline implementation is optimized for local/dev and a traditional server:
-
-- Uses **Poppler** binaries (`pdfinfo`, `pdftocairo`)
-- Writes to `os.tmpdir()`
-- Uses an in-memory job store
-- Streams progress via **SSE**
-
-This is not a great fit for pure serverless platforms (e.g. Vercel/Netlify) due to ephemeral disk, cold starts/scale-out, execution time limits, and long-lived connections.
-
-Some options to make this serverless-friendly:
-
-- **Direct-to-storage upload + external worker (recommended)**:
-  - Use [UploadThing](https://uploadthing.com/) for browser → storage uploads (your server only authenticates/authorizes)
-  - Trigger background processing via a worker/queue (e.g. Trigger.dev) to:
-    - download the PDF
-    - render page images
-    - write progress + outputs to durable storage (S3/R2/UploadThing/etc.)
-  - Frontend reads progress from a DB/KV (polling or SSE that only reads state)
-
-- **Pure JS/WASM rendering in serverless**:
-  - Replace Poppler with a PDF renderer that runs without native binaries (often pdf.js-based)
-  - Still requires durable storage for the PDF + images and persistent job state
-
-- **Hybrid hosting**:
-  - Keep the Next.js web app on Vercel/Netlify, but run the extraction/OCR worker on a container VM (Fly.io/Render/Railway)
-  - Keep progress + artifacts in a DB/object storage so the UI remains stateless
+See `AGENTS.md` for deep-dive architecture notes and development pitfalls.
 
 ## License
 
@@ -129,4 +111,4 @@ MIT — see [`LICENSE.md`](LICENSE.md).
 
 # Inspiration
 
-The name of the project comes from Suhayla: a food that is both sweet and sour at the same time.
+The name comes from Suhayla: a food that is both sweet and sour at the same time.

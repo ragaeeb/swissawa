@@ -8,15 +8,16 @@ Repo: [ragaeeb/swissawa](https://github.com/ragaeeb/swissawa)
 
 `swissawa` aims to support an OCR workflow for **Arabic Islamic books** in PDF form, plus the post-processing and QA steps required to produce high-quality text.
 
-This repo currently includes a baseline “PDF → page images” pipeline, plus early “crop + download” tooling:
+This repo includes a baseline “PDF → page images” pipeline, a global cropping tool, and an OCR engine:
 
-- Upload a PDF (streamed to disk for large files)
-- Extract metadata + render pages to low-res JPEGs
-- Stream progress to the browser via SSE
-- Display page previews using `next/image`
-- Set a **global crop** (draw once, applied to all previews)
-- Download the **cropped PDF** from the server
-- Cleanup cached files (delete temp dir + dedupe index)
+- **PDF Ingest**: Upload a file (streamed) or provide a URL (server-side download).
+- **Processing**: Extract metadata + render pages to low-res JPEGs using Poppler.
+- **Global Crop**: Set a `CropBox` (normalized 0..1) applied to all pages.
+- **OCR Engine**: Run `macOCR` (macOS Vision-based) on the cropped PDF.
+- **Side-by-side UI**: View scanned page images next to extracted Arabic text (optimized with `IBM Plex Sans Arabic`).
+- **Progress Tracking**: Real-time progress for both extraction and OCR via Server-Sent Events (SSE).
+- **Deduplication**: SHA-256 hashing to reuse processing artifacts for identical PDFs.
+- **Dual OCR Engines**: Supports both macOCR (macOS Vision) and Surya (ML-based) with parallel execution.
 
 ## Tech constraints / conventions
 
@@ -25,128 +26,95 @@ This repo currently includes a baseline “PDF → page images” pipeline, plus
 - **TypeScript target**: `ESNext` (see `tsconfig.json`)
 - **Formatting/Lint**: Biome (`bun run lint`, `bun run format`)
 - **API routing**: **App Router** route handlers under `src/app/api/**` (avoid `pages/api`)
+- **Typography**: Arabic text uses `IBM Plex Sans Arabic` for legibility.
 
 ## Local requirements
 
-- Poppler must be available on the machine:
-  - `pdfinfo`
-  - `pdftocairo`
+- **Poppler**: `pdfinfo`, `pdftocairo`
+- **macOCR**: CLI tool for macOS Vision-based OCR.
 
 On macOS:
 
 ```bash
 brew install poppler
+# macOCR must be in PATH
+```
+
+- **Surya OCR**: Python-based OCR with ML models. Requires virtual environment at `~/surya-env`:
+
+```bash
+python3 -m venv ~/surya-env
+source ~/surya-env/bin/activate
+pip install surya-ocr
 ```
 
 ## Key flows
 
-### Upload → extract → progress
+### Upload/URL → extract → progress
 
-1. Browser uploads PDF to `POST /api/upload` (multipart/form-data).
-2. Server streams the file to `os.tmpdir()` under `swissawa/<jobId>/input.pdf`.
+1. Browser uploads PDF to `POST /api/upload` or submits URL to `POST /api/upload-url`.
+2. Server streams/downloads the file to `os.tmpdir()` under `swissawa/<jobId>/input.pdf`.
 3. Background job:
-   - runs `pdfinfo` to collect metadata and total pages
-   - runs `pdftocairo` in **chunked + parallel** mode to generate low-res JPEG pages
-4. Browser opens `GET /api/jobs/:jobId/events` and receives:
-   - `snapshot` (initial job state)
-   - `pdf` (metadata)
-   - `progress` updates
-   - `complete` or `error`
+   - runs `pdfinfo` for metadata
+   - runs `pdftocairo` in parallel to generate JPEGs
+4. Browser opens `GET /api/jobs/:jobId/events` (SSE) for progress.
 
-### Crop → apply to previews → download
+### Crop → OCR → View
 
-- Crop is stored as a normalized `CropBox` (`x,y,width,height` in **0..1**, top-left origin).
-- UI uses `react-image-crop`; server-side download uses `pdf-lib` to set `CropBox`/`TrimBox` (and optionally `MediaBox`).
-- Download endpoint: `GET /api/jobs/:jobId/download`
-  - Default preserves original page size (avoids “looks lower quality” surprises on scanned PDFs)
-  - Optional `?shrink=1` physically shrinks pages (viewer may auto-zoom more)
-
-### Cleanup
-
-- Cleanup endpoint: `DELETE /api/jobs/:jobId`
-  - Removes `os.tmpdir()/swissawa/<jobId>/...`
-  - Removes any `os.tmpdir()/swissawa/by-hash/<sha256>.json` records pointing at that jobId
-  - Evicts in-memory job state
-
-### Image file naming gotcha (important)
-
-Poppler often writes images using **zero-padded page numbers**, e.g.:
-
-- `page-001.jpg`, `page-040.jpg`, `page-108.jpg`
-
-The resolver in `src/server/pdf/imageResolve.ts` exists specifically to prevent regressions where the server tries to serve `page-1.jpg` and returns 404s.
+1. User sets a global crop in the UI (`CropBox` 0..1).
+2. Server saves crop to `ocr/crop.json`.
+3. User runs OCR via `POST /api/jobs/:jobId/ocr` (macOCR) or `POST /api/jobs/:jobId/surya`:
+   - Server crops the PDF using `pdf-lib`.
+   - Server spawns `macOCR --language ar-SA` or `surya_ocr --disable_math`.
+   - Progress is streamed via `/ocr/events` or `/surya/events`.
+   - **Parallel execution**: Select "Both Engines" in UI to run both simultaneously.
+4. Browser fetches paged results via `/ocr/pages/:page` or `/surya/pages/:page`.
 
 ## Important paths
 
-- **UI**: `src/app/page.tsx`
+- **UI**: `src/app/page.tsx`, `src/components/PageOcrTable.tsx`
 - **API routes**:
-  - `src/app/api/upload/route.ts`
-  - `src/app/api/jobs/[jobId]/events/route.ts` (SSE)
-  - `src/app/api/jobs/[jobId]/route.ts` (status)
-  - `src/app/api/jobs/[jobId]/images/[page]/route.ts` (serve JPEG)
-  - `src/app/api/jobs/[jobId]/crop/route.ts` (get/set crop)
-  - `src/app/api/jobs/[jobId]/download/route.ts` (download original/cropped PDF)
-- **Job store**: `src/server/jobs/jobStore.ts`
-- **Temp paths**: `src/server/jobs/jobPaths.ts`
-- **Job snapshots**: `src/server/jobs/jobSnapshot.ts` (persist job state on disk for refresh/HMR)
-- **Dedupe index**: `src/server/jobs/hashIndex.ts` (sha256 → jobId)
-- **Crop persistence**: `src/server/crop/cropStore.ts`
-- **Crop PDF generation**: `src/server/pdf/cropPdf.ts`
-- **PDF parsing**: `src/server/pdf/pdfInfo.ts`
-- **PDF extraction**: `src/server/pdf/runner.ts`, `src/server/pdf/extract.ts`
-- **Image resolution**: `src/server/pdf/imageResolve.ts` (+ regression tests)
+  - `src/app/api/upload/route.ts` & `/upload-url/route.ts`
+  - `src/app/api/jobs/[jobId]/events/route.ts` (Extraction SSE)
+  - `src/app/api/jobs/[jobId]/ocr/route.ts` (Start OCR / Status)
+  - `src/app/api/jobs/[jobId]/ocr/events/route.ts` (OCR SSE)
+  - `src/app/api/jobs/[jobId]/ocr/pages/[page]/route.ts` (Get OCR text)
+  - `src/app/api/jobs/[jobId]/surya/route.ts` (Start Surya OCR / Status)
+  - `src/app/api/jobs/[jobId]/surya/events/route.ts` (Surya SSE)
+  - `src/app/api/jobs/[jobId]/surya/pages/[page]/route.ts` (Get Surya text)
+- **OCR Logic**: `src/server/ocr/runMacOcr.ts`, `src/server/ocr/runSuryaOcr.ts`, `src/server/ocr/ocrEventBus.ts`
+- **Job store**: `src/server/jobs/jobStore.ts` (in-memory + filesystem fallback)
 
-## Tests
+## Lessons learned / common pitfalls (CRITICAL)
 
-Run:
+- **Next.js HMR resets module state**: In development, `globalThis` MUST be used to store event buses or singleton stores that need to persist across reloads (see `ocrEventBus.ts`).
+- **CLI Output Buffering**: Many CLI tools (like `macOCR`) buffer stdout when piped. Use `script -q /dev/null <cmd>` on macOS to force line-buffering so SSE can show real-time progress.
+- **Arabic Typography**: Standard fonts like "Amiri" are hard to read in digital tables. `IBM Plex Sans Arabic` is currently preferred. Always use `dir="rtl"` and `text-right` for Arabic content.
+- **SSE Missed Events**: If a process finishes before the SSE client connects, the client might hang. Always check current status immediately upon SSE connection and send a terminal event if already finished.
+- **Race Conditions in React**: When fetching paged data (like OCR text per row), use `AbortController` in `useEffect` to prevent setting state for a job/page that is no longer active.
+- **Build Safety with SearchParams**: Using `useSearchParams()` at the root level of a page causes Next.js to bail out of static rendering. Use manual `window.location` parsing or wrap in `<Suspense>` to keep the build safe.
+- **Surya Virtual Environment**: Surya runs in a Python venv at `~/surya-env`. The runner activates it via `bash -c "source ... && surya_ocr ..."`.
+- **GPU Fallback**: Surya prefers MPS (Metal) on macOS but falls back to CPU if MPS fails. Set `TORCH_DEVICE` environment variable accordingly.
+- **Large JSON Filtering**: Surya outputs massive results.json with character-level data. Filter using `filterSuryaRawOutput()` to strip `chars`, `confidence`, `polygon`, `words` before storage.
+- **Surya Page Indexing**: Surya's `results.json` uses **1-indexed** pages (`"page": 1` for first page). Do NOT add +1 when converting to ObservationPage format - they're already 1-indexed.
+- **AbortError in React**: When fetching data in `useEffect`, wrap fetch in try-catch and silently return `null` for AbortError. Otherwise component unmounts spam the console with errors.
+- **Progress UI Priority**: When showing progress, prioritize the raw `line` field (contains actual percentages like "25%|████") over generic `phase` labels. Users want to see real progress, not just "Recognizing text…".
+- **Dual SSE Connections**: When running both OCR engines, each engine has its own SSE endpoint. Use separate `EventSource` refs and ensure cleanup in `useEffect` return function.
 
-```bash
-bun test
-```
+## Debugging tips for future agents
 
-Guideline:
-- Add unit tests for any parsing/formatting/path logic and for bug regressions (e.g., padding logic, directory inference).
-- Avoid component tests for now (no React Testing Library yet).
-- **Test style**: prefer `it('should ...')` (over `test(...)`) for consistency across the repo.
-
-## Lessons learned / common pitfalls (read this first)
-
-- **Poppler filename padding**: Poppler often writes `page-001.jpg`. Always resolve images via `src/server/pdf/imageResolve.ts` to avoid 404s after extraction.
-- **Dev refresh/HMR resets memory**: The in-memory job store can disappear; always keep filesystem fallbacks (job snapshot + image resolver).
-- **Deduplication needs cleanup**: If you delete a job dir but leave its `by-hash` record, future uploads will “reuse” a dead jobId. Cleanup must remove both.
-- **react-image-crop callback gotcha**: `onComplete(pixelCrop, percentCrop)`—using the wrong arg causes crop “jumping” on mouse-up.
-- **Crop units mismatch**: UI percent crop is **0..100**, server crop box is **0..1**. Conversions live in `src/lib/cropConvert.ts`.
-- **Thumbnails vs crop**: `object-cover` will “pre-crop” before `clip-path`. Use `object-contain` if you want the crop to visually match saved values.
-- **Cropped PDF “quality”**: Shrinking `MediaBox` makes viewers auto-zoom more; default download preserves page size and uses `TrimBox`/`CropBox`.
-
-## Latest achievements (so you know what’s already done)
-
-- **Upload + SSE progress** (App Router) with Poppler extraction (chunked + parallel).
-- **Persistent resume** via job snapshots on disk + hash-based dedupe.
-- **Global crop UI** using `react-image-crop` + server storage.
-- **Download cropped PDF** via `pdf-lib` (+ caching; optional `?shrink=1`).
-- **Cleanup endpoint + UI** to delete cached files and dedupe records.
+- **Check surya output location**: Surya outputs to `<outputDir>/input/results.json` (where `input` is derived from `input.pdf` basename). Not directly in `<outputDir>`.
+- **Verify page JSON files**: If pages show "Loading..." after OCR completes, check that `surya/pages/1.json` exists. If it's missing but `2.json` exists, there's an indexing bug.
+- **Test with real results.json**: Copy actual Surya output (`results.json`) to project root and inspect the `page` field values directly - don't assume they're 0-indexed.
+- **SSE debugging**: Add console.info in `createEventSource` to see connection/disconnect events. Check for `[jobs.surya.sse.connect]` logs on the server.
+- **CPU spinning after completion**: If observed, check that child processes are properly terminated. The `spawn` mock in tests should verify cleanup.
 
 ## Performance notes
 
-Arabic books can be thousands of pages.
-
-- Prefer **paged / progressive UI** (don’t return an array of 10k URLs in one JSON response).
-- In the backend, keep extraction chunked and parallelized (CPU-bound; concurrency should be tied to CPU count).
-- Keep images low-res/low-quality by default; allow later tuning.
-
-## Safety / future hardening
-
-This code currently stores uploads under `os.tmpdir()` and keeps job state in-memory for simplicity.
-Before productionizing:
-
-- Add job persistence and cleanup (TTL) for tmp dirs
-- Add upload limits, auth, and CSRF protections as needed
-- Consider queueing / rate-limiting / per-job concurrency caps
-- Validate PDFs more robustly (malformed PDFs, encrypted PDFs)
+- **Chunked Extraction**: Extraction is parallelized based on CPU count.
+- **Paged OCR results**: OCR JSON can be massive (MBs of data). Never send the full JSON in one request; use the paged API (`/ocr/pages/:page`).
+- **Disk Persistence**: Always write a `snapshot.json` to the job directory. This allows the server to recover job state if the Node process restarts.
 
 ## License
 
 MIT — see `LICENSE.md`.
-
-
