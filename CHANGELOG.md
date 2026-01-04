@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/ragaeeb/swissawa/compare/v1.1.0...v1.2.0) (2026-01-04)
+
+
+### Features
+
+* **ocr:** Add OCR feature via macOCR ([d63277f](https://github.com/ragaeeb/swissawa/commit/d63277fc57c754e1eec2aecfbb7849f5f87a8cd1))
+
 # [1.1.0](https://github.com/ragaeeb/swissawa/compare/v1.0.0...v1.1.0) (2026-01-03)
 
 
