@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/ragaeeb/swissawa/compare/v1.2.0...v1.3.0) (2026-01-04)
+
+
+### Features
+
+* **surya:** Add surya support ([#3](https://github.com/ragaeeb/swissawa/issues/3)) ([e9321af](https://github.com/ragaeeb/swissawa/commit/e9321af65d35c4f4d0b70c578b6cd56fe45e74ff))
+
 # [1.2.0](https://github.com/ragaeeb/swissawa/compare/v1.1.0...v1.2.0) (2026-01-04)
 
 
