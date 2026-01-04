@@ -107,7 +107,14 @@ pip install surya-ocr
 - **Verify page JSON files**: If pages show "Loading..." after OCR completes, check that `surya/pages/1.json` exists. If it's missing but `2.json` exists, there's an indexing bug.
 - **Test with real results.json**: Copy actual Surya output (`results.json`) to project root and inspect the `page` field values directly - don't assume they're 0-indexed.
 - **SSE debugging**: Add console.info in `createEventSource` to see connection/disconnect events. Check for `[jobs.surya.sse.connect]` logs on the server.
-- **CPU spinning after completion**: If observed, check that child processes are properly terminated. The `spawn` mock in tests should verify cleanup.
+- **CPU spinning after completion**: If observed, check the `stderr` parsing logic in `runSuryaOcr.ts`. Ensure that we are not accumulating infinite strings in memory and that the stream listeners are cleaned up. Using `child.unref()` might be necessary if the server needs to exit while the process runs, but here we prefer keeping them attached for logging.
+- **Parallel Fetching**: The `PageOcrTable` fetches text for multiple pages in parallel when "Both Engines" is selected. This can hit rate limits or cause saturation; ensure the `useEffect` fetch loop is serial per-engine to keep the network tab manageable.
+
+## Process Management & CPU Usage
+
+- **Surya Resource Usage**: Surya is heavy. It can consume significant RAM/GPU. If it hangs, use `ps aux | grep surya` to find orphaned python processes.
+- **Signal Handling**: The browser's `AbortController` only aborts the *network request*. It does NOT stop the server-side OCR process. To stop the OCR, a separate `DELETE` or `POST /cancel` endpoint would be needed (currently not implemented).
+- **Stream Throttling**: The SSE progress events are emitted for every line of `stderr`. If Surya outputs thousands of lines rapidly, it might bog down the React main thread. The current implementation relies on the browser/server TCP windowing, but consider adding a debounce if UI lag occurs.
 
 ## Performance notes
 
