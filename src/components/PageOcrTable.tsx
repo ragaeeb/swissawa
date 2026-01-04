@@ -9,29 +9,28 @@ import type { CropBox } from '@/server/crop/crop';
 import { cropBoxToClipPathInset } from '@/server/crop/crop';
 
 type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
+type OcrEngine = 'macOCR' | 'surya' | 'both';
 
-type OcrProgress = { line: string; currentPage?: number; totalPages?: number };
+type OcrProgress = { line: string; currentPage?: number; totalPages?: number; phase?: string };
 
 function isProbablyRtl(text: string): boolean {
-    // Arabic + Arabic Supplement + Arabic Extended-A + Arabic Presentation Forms + Hebrew
     return /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
 }
 
 type OcrStatusResponse = { status: OcrStatus; error?: string };
 
 function scheduleOcrStatusSyncs(params: {
-    jobId: string;
+    endpoint: string;
     setOcrError: (v: string | null) => void;
     setOcrReady: (v: boolean) => void;
     setOcrStatus: (v: OcrStatus) => void;
 }) {
-    // Bounded fallback: if SSE is blocked or misses the terminal event, sync status a few times.
     const delays = [500, 1500, 3000];
     for (const d of delays) {
         window.setTimeout(() => {
             void (async () => {
                 try {
-                    const r = await fetch(`/api/jobs/${encodeURIComponent(params.jobId)}/ocr`);
+                    const r = await fetch(params.endpoint);
                     if (!r.ok) {
                         return;
                     }
@@ -44,38 +43,87 @@ function scheduleOcrStatusSyncs(params: {
                         params.setOcrError(data.error ?? 'OCR error');
                     }
                 } catch {
-                    // ignore
+                    /* ignore */
                 }
             })();
         }, d);
     }
 }
 
-async function fetchOcrTextForPage(jobId: string, pageNumber: number, signal: AbortSignal): Promise<string | null> {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/ocr/pages/${pageNumber}`, { signal });
-    if (!res.ok) {
+async function fetchOcrTextForPage(
+    jobId: string,
+    pageNumber: number,
+    engine: 'ocr' | 'surya',
+    signal: AbortSignal,
+): Promise<string | null> {
+    try {
+        const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/${engine}/pages/${pageNumber}`, { signal });
+        if (!res.ok) {
+            return null;
+        }
+        const page = (await res.json()) as ObservationPage;
+        return page.observations.map((o) => o.text).join('\n');
+    } catch (err: unknown) {
+        // AbortError is expected when component unmounts or job changes
+        if (err instanceof Error && err.name === 'AbortError') {
+            return null;
+        }
+        console.warn('[fetchOcrTextForPage.error]', { engine, err, jobId, pageNumber });
         return null;
     }
-    const page = (await res.json()) as ObservationPage;
-    return page.observations.map((o) => o.text).join('\n');
+}
+
+function OcrTextCell({
+    ready,
+    text,
+    extractedPages,
+    pageNumber,
+}: {
+    ready: boolean;
+    text?: string;
+    extractedPages: number;
+    pageNumber: number;
+}) {
+    if (!ready) {
+        return <div className="text-xs text-zinc-600 dark:text-zinc-400">Run OCR to populate text.</div>;
+    }
+    return (
+        <div
+            dir={text && isProbablyRtl(text) ? 'rtl' : 'ltr'}
+            className={[
+                'whitespace-pre-wrap font-arabic text-[17px] leading-[1.8]',
+                text && isProbablyRtl(text) ? 'text-right' : 'text-left',
+            ].join(' ')}
+        >
+            {text ?? (pageNumber <= extractedPages ? 'Loading…' : '')}
+        </div>
+    );
 }
 
 function PageRow({
     clipPath,
     extractedPages,
     jobId,
-    ocrReady,
-    ocrText,
+    macOcrReady,
+    macOcrText,
+    suryaReady,
+    suryaText,
     onCropPage,
     pageNumber,
+    showMacOcr,
+    showSurya,
 }: {
     pageNumber: number;
     jobId: string;
     extractedPages: number;
     onCropPage: (pageNumber: number) => void;
     clipPath?: string;
-    ocrReady: boolean;
-    ocrText?: string;
+    macOcrReady: boolean;
+    macOcrText?: string;
+    suryaReady: boolean;
+    suryaText?: string;
+    showMacOcr: boolean;
+    showSurya: boolean;
 }) {
     return (
         <TableRow>
@@ -107,21 +155,26 @@ function PageRow({
                     )}
                 </div>
             </TableCell>
-            <TableCell className="align-top">
-                {ocrReady ? (
-                    <div
-                        dir={ocrText && isProbablyRtl(ocrText) ? 'rtl' : 'ltr'}
-                        className={[
-                            'whitespace-pre-wrap font-arabic text-[17px] leading-[1.8]',
-                            ocrText && isProbablyRtl(ocrText) ? 'text-right' : 'text-left',
-                        ].join(' ')}
-                    >
-                        {ocrText ?? (pageNumber <= extractedPages ? 'Loading…' : '')}
-                    </div>
-                ) : (
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400">Run OCR to populate text.</div>
-                )}
-            </TableCell>
+            {showMacOcr && (
+                <TableCell className="align-top">
+                    <OcrTextCell
+                        ready={macOcrReady}
+                        text={macOcrText}
+                        extractedPages={extractedPages}
+                        pageNumber={pageNumber}
+                    />
+                </TableCell>
+            )}
+            {showSurya && (
+                <TableCell className="align-top">
+                    <OcrTextCell
+                        ready={suryaReady}
+                        text={suryaText}
+                        extractedPages={extractedPages}
+                        pageNumber={pageNumber}
+                    />
+                </TableCell>
+            )}
         </TableRow>
     );
 }
@@ -146,146 +199,249 @@ export function PageOcrTable({
     onCropPage: (pageNumber: number) => void;
 }) {
     const clipPath = useMemo(() => (crop ? cropBoxToClipPathInset(crop) : undefined), [crop]);
-    const [ocrStatus, setOcrStatus] = useState<OcrStatus>('idle');
-    const [ocrError, setOcrError] = useState<string | null>(null);
-    const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
-    const [ocrReady, setOcrReady] = useState(false);
-    const [ocrTextByPage, setOcrTextByPage] = useState<Record<number, string>>({});
+    const [selectedEngine, setSelectedEngine] = useState<OcrEngine>('both');
 
-    const esRef = useRef<EventSource | null>(null);
+    // macOCR state
+    const [macOcrStatus, setMacOcrStatus] = useState<OcrStatus>('idle');
+    const [macOcrError, setMacOcrError] = useState<string | null>(null);
+    const [macOcrProgress, setMacOcrProgress] = useState<OcrProgress | null>(null);
+    const [macOcrReady, setMacOcrReady] = useState(false);
+    const [macOcrTextByPage, setMacOcrTextByPage] = useState<Record<number, string>>({});
+    const macOcrEsRef = useRef<EventSource | null>(null);
 
-    const ensureOcrEventSource = useCallback((): void => {
-        if (esRef.current) {
-            return;
-        }
-        console.info('[ocr.sse.client.connect]', { jobId });
-        const es = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/ocr/events`);
-        esRef.current = es;
+    // Surya state
+    const [suryaStatus, setSuryaStatus] = useState<OcrStatus>('idle');
+    const [suryaError, setSuryaError] = useState<string | null>(null);
+    const [suryaProgress, setSuryaProgress] = useState<OcrProgress | null>(null);
+    const [suryaReady, setSuryaReady] = useState(false);
+    const [suryaTextByPage, setSuryaTextByPage] = useState<Record<number, string>>({});
+    const suryaEsRef = useRef<EventSource | null>(null);
 
-        es.addEventListener('open', () => {
-            console.info('[ocr.sse.client.open]', { jobId });
-        });
+    const showMacOcr = selectedEngine === 'macOCR' || selectedEngine === 'both';
+    const showSurya = selectedEngine === 'surya' || selectedEngine === 'both';
 
-        es.addEventListener('snapshot', (ev) => {
-            const data = JSON.parse((ev as MessageEvent).data) as { status: OcrStatus; progress?: OcrProgress | null };
-            setOcrStatus(data.status);
-            setOcrProgress(data.progress ?? null);
-            setOcrReady(data.status === 'complete');
-        });
-
-        es.addEventListener('progress', (ev) => {
-            const data = JSON.parse((ev as MessageEvent).data) as OcrProgress;
-            setOcrProgress(data);
-            setOcrStatus('running');
-        });
-
-        es.addEventListener('complete', () => {
-            setOcrStatus('complete');
-            setOcrReady(true);
-            es.close();
-            esRef.current = null;
-        });
-
-        es.addEventListener('error', (ev) => {
-            console.warn('[ocr.sse.client.error]', { ev, jobId });
-            try {
-                const data = JSON.parse((ev as MessageEvent).data) as any;
-                setOcrError(data?.message ?? 'OCR error');
-            } catch {
-                setOcrError('OCR error');
+    const createEventSource = useCallback(
+        (
+            endpoint: string,
+            esRef: React.MutableRefObject<EventSource | null>,
+            setStatus: (v: OcrStatus) => void,
+            setProgress: (v: OcrProgress | null) => void,
+            setReady: (v: boolean) => void,
+            setError: (v: string | null) => void,
+            label: string,
+        ) => {
+            if (esRef.current) {
+                return;
             }
-            setOcrStatus('error');
-            es.close();
-            esRef.current = null;
-        });
-    }, [jobId]);
+            console.info(`[${label}.sse.client.connect]`, { jobId });
+            const es = new EventSource(endpoint);
+            esRef.current = es;
 
+            es.addEventListener('snapshot', (ev) => {
+                const data = JSON.parse((ev as MessageEvent).data) as {
+                    status: OcrStatus;
+                    progress?: OcrProgress | null;
+                };
+                setStatus(data.status);
+                setProgress(data.progress ?? null);
+                setReady(data.status === 'complete');
+            });
+
+            es.addEventListener('progress', (ev) => {
+                const data = JSON.parse((ev as MessageEvent).data) as OcrProgress;
+                setProgress(data);
+                setStatus('running');
+            });
+
+            es.addEventListener('complete', () => {
+                setStatus('complete');
+                setReady(true);
+                es.close();
+                esRef.current = null;
+            });
+
+            es.addEventListener('error', (ev) => {
+                console.warn(`[${label}.sse.client.error]`, { ev, jobId });
+                try {
+                    const data = JSON.parse((ev as MessageEvent).data) as any;
+                    setError(data?.message ?? 'OCR error');
+                } catch {
+                    setError('OCR error');
+                }
+                setStatus('error');
+                es.close();
+                esRef.current = null;
+            });
+        },
+        [jobId],
+    );
+
+    const ensureMacOcrEventSource = useCallback(() => {
+        createEventSource(
+            `/api/jobs/${encodeURIComponent(jobId)}/ocr/events`,
+            macOcrEsRef,
+            setMacOcrStatus,
+            setMacOcrProgress,
+            setMacOcrReady,
+            setMacOcrError,
+            'macOcr',
+        );
+    }, [createEventSource, jobId]);
+
+    const ensureSuryaEventSource = useCallback(() => {
+        createEventSource(
+            `/api/jobs/${encodeURIComponent(jobId)}/surya/events`,
+            suryaEsRef,
+            setSuryaStatus,
+            setSuryaProgress,
+            setSuryaReady,
+            setSuryaError,
+            'surya',
+        );
+    }, [createEventSource, jobId]);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: jobId is intentionally included to reset state when job changes
     useEffect(() => {
-        // Initialize state when job changes.
-        setOcrStatus('idle');
-        setOcrError(null);
-        setOcrProgress(null);
-        setOcrReady(false);
-        setOcrTextByPage({});
+        // Reset state when job changes
+        setMacOcrStatus('idle');
+        setMacOcrError(null);
+        setMacOcrProgress(null);
+        setMacOcrReady(false);
+        setMacOcrTextByPage({});
+        setSuryaStatus('idle');
+        setSuryaError(null);
+        setSuryaProgress(null);
+        setSuryaReady(false);
+        setSuryaTextByPage({});
 
-        // Close any existing connection for previous job.
-        if (esRef.current) {
-            console.info('[ocr.sse.client.close]', { jobId });
-            esRef.current.close();
-            esRef.current = null;
+        macOcrEsRef.current?.close();
+        macOcrEsRef.current = null;
+        suryaEsRef.current?.close();
+        suryaEsRef.current = null;
+
+        // Connect to SSE immediately
+        if (showMacOcr) {
+            ensureMacOcrEventSource();
         }
-
-        // Connect immediately to observe status even if OCR is started elsewhere.
-        ensureOcrEventSource();
+        if (showSurya) {
+            ensureSuryaEventSource();
+        }
 
         return () => {
-            if (esRef.current) {
-                console.info('[ocr.sse.client.close]', { jobId });
-                esRef.current.close();
-                esRef.current = null;
-            }
+            macOcrEsRef.current?.close();
+            macOcrEsRef.current = null;
+            suryaEsRef.current?.close();
+            suryaEsRef.current = null;
         };
-    }, [ensureOcrEventSource, jobId]);
+    }, [jobId, showMacOcr, showSurya, ensureMacOcrEventSource, ensureSuryaEventSource]);
 
     const runOcr = async () => {
-        setOcrError(null);
-        try {
-            // Ensure we have an SSE connection before starting OCR so we don't miss early events.
-            console.info('[ocr.ui.run]', { jobId });
-            ensureOcrEventSource();
-            const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/ocr`, { method: 'POST' });
-            if (!res.ok) {
-                const body = await res.json().catch(() => null);
-                throw new Error(body?.error ?? `Failed to start OCR (${res.status})`);
-            }
-            setOcrStatus('running');
-            // Fallback: one-shot status sync in case SSE is blocked by the browser or dev tooling.
-            scheduleOcrStatusSyncs({ jobId, setOcrError, setOcrReady, setOcrStatus });
-        } catch (err: unknown) {
-            setOcrError(err instanceof Error ? err.message : 'Failed to start OCR');
-            setOcrStatus('error');
+        setMacOcrError(null);
+        setSuryaError(null);
+
+        const promises: Promise<void>[] = [];
+
+        if (showMacOcr) {
+            ensureMacOcrEventSource();
+            promises.push(
+                (async () => {
+                    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/ocr`, { method: 'POST' });
+                    if (!res.ok) {
+                        const body = await res.json().catch(() => null);
+                        throw new Error(body?.error ?? `Failed to start macOCR (${res.status})`);
+                    }
+                    setMacOcrStatus('running');
+                    scheduleOcrStatusSyncs({
+                        endpoint: `/api/jobs/${encodeURIComponent(jobId)}/ocr`,
+                        setOcrError: setMacOcrError,
+                        setOcrReady: setMacOcrReady,
+                        setOcrStatus: setMacOcrStatus,
+                    });
+                })().catch((err) => setMacOcrError(err.message)),
+            );
         }
+
+        if (showSurya) {
+            ensureSuryaEventSource();
+            promises.push(
+                (async () => {
+                    const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/surya`, { method: 'POST' });
+                    if (!res.ok) {
+                        const body = await res.json().catch(() => null);
+                        throw new Error(body?.error ?? `Failed to start Surya (${res.status})`);
+                    }
+                    setSuryaStatus('running');
+                    scheduleOcrStatusSyncs({
+                        endpoint: `/api/jobs/${encodeURIComponent(jobId)}/surya`,
+                        setOcrError: setSuryaError,
+                        setOcrReady: setSuryaReady,
+                        setOcrStatus: setSuryaStatus,
+                    });
+                })().catch((err) => setSuryaError(err.message)),
+            );
+        }
+
+        await Promise.all(promises);
     };
 
+    // Fetch macOCR text for pages
     useEffect(() => {
-        if (!ocrReady) {
+        if (!macOcrReady) {
             return;
         }
         const controller = new AbortController();
-
         void (async () => {
-            try {
-                for (const p of previewPages) {
-                    if (controller.signal.aborted) {
-                        return;
-                    }
-                    if (p > extractedPages) {
-                        continue;
-                    }
-                    if (ocrTextByPage[p]) {
-                        continue;
-                    }
-                    const text = await fetchOcrTextForPage(jobId, p, controller.signal);
-                    if (!text) {
-                        continue;
-                    }
-                    setOcrTextByPage((m) => ({ ...m, [p]: text }));
+            for (const p of previewPages) {
+                if (controller.signal.aborted || p > extractedPages || macOcrTextByPage[p]) {
+                    continue;
                 }
-            } catch (err: unknown) {
-                if (err instanceof Error && err.name === 'AbortError') {
-                    return;
+                const text = await fetchOcrTextForPage(jobId, p, 'ocr', controller.signal);
+                if (text) {
+                    setMacOcrTextByPage((m) => ({ ...m, [p]: text }));
                 }
-                // ignore other errors; rows will stay in "Loading…" and can be retried on rerender
             }
         })();
-
         return () => controller.abort();
-    }, [extractedPages, jobId, ocrReady, ocrTextByPage, previewPages]);
+    }, [extractedPages, jobId, macOcrReady, macOcrTextByPage, previewPages]);
 
-    const progressLabel =
-        ocrProgress?.currentPage && ocrProgress?.totalPages
-            ? `Processing page ${ocrProgress.currentPage} of ${ocrProgress.totalPages}…`
-            : (ocrProgress?.line ?? null);
+    // Fetch Surya text for pages
+    useEffect(() => {
+        if (!suryaReady) {
+            return;
+        }
+        const controller = new AbortController();
+        void (async () => {
+            for (const p of previewPages) {
+                if (controller.signal.aborted || p > extractedPages || suryaTextByPage[p]) {
+                    continue;
+                }
+                const text = await fetchOcrTextForPage(jobId, p, 'surya', controller.signal);
+                if (text) {
+                    setSuryaTextByPage((m) => ({ ...m, [p]: text }));
+                }
+            }
+        })();
+        return () => controller.abort();
+    }, [extractedPages, jobId, suryaReady, suryaTextByPage, previewPages]);
+
+    const formatProgressLabel = (progress: OcrProgress | null, status: OcrStatus, label: string): string | null => {
+        if (status !== 'running') {
+            return null;
+        }
+        // Show the actual line with percentage info if available
+        if (progress?.line) {
+            return `${label}: ${progress.line}`;
+        }
+        if (progress?.currentPage && progress?.totalPages) {
+            return `${label}: Page ${progress.currentPage} of ${progress.totalPages}`;
+        }
+        return null;
+    };
+
+    const macOcrProgressLabel = formatProgressLabel(macOcrProgress, macOcrStatus, 'macOCR');
+    const suryaProgressLabel = formatProgressLabel(suryaProgress, suryaStatus, 'Surya');
+
+    const isRunning = (showMacOcr && macOcrStatus === 'running') || (showSurya && suryaStatus === 'running');
 
     return (
         <div className="flex flex-col gap-4">
@@ -297,27 +453,53 @@ export function PageOcrTable({
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="secondary" onClick={runOcr} disabled={ocrStatus === 'running'}>
-                        {ocrStatus === 'running' ? 'Running OCR…' : 'Run OCR'}
+                    <select
+                        value={selectedEngine}
+                        onChange={(e) => setSelectedEngine(e.target.value as OcrEngine)}
+                        className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                        <option value="both">Both Engines</option>
+                        <option value="macOCR">macOCR Only</option>
+                        <option value="surya">Surya Only</option>
+                    </select>
+                    <Button type="button" variant="secondary" onClick={runOcr} disabled={isRunning}>
+                        {isRunning ? 'Running OCR…' : 'Run OCR'}
                     </Button>
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400">OCR: {ocrStatus}</div>
                 </div>
             </div>
 
-            {progressLabel ? <div className="text-xs text-zinc-600 dark:text-zinc-400">{progressLabel}</div> : null}
-            {ocrError ? <div className="text-red-600 text-sm dark:text-red-400">{ocrError}</div> : null}
+            {/* Progress and status display */}
+            <div className="flex flex-wrap gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+                {showMacOcr && (
+                    <div>
+                        <span className="font-medium">macOCR:</span> {macOcrStatus}
+                        {macOcrProgressLabel && <span className="ml-2">{macOcrProgressLabel}</span>}
+                    </div>
+                )}
+                {showSurya && (
+                    <div>
+                        <span className="font-medium">Surya:</span> {suryaStatus}
+                        {suryaProgressLabel && <span className="ml-2">{suryaProgressLabel}</span>}
+                    </div>
+                )}
+            </div>
+
+            {macOcrError && <div className="text-red-600 text-sm dark:text-red-400">macOCR: {macOcrError}</div>}
+            {suryaError && <div className="text-red-600 text-sm dark:text-red-400">Surya: {suryaError}</div>}
 
             <Table className="table-fixed">
                 <colgroup>
                     <col style={{ width: 80 }} />
                     <col style={{ width: 300 }} />
-                    <col />
+                    {showMacOcr && <col />}
+                    {showSurya && <col />}
                 </colgroup>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Page</TableHead>
                         <TableHead>Image</TableHead>
-                        <TableHead>OCR text</TableHead>
+                        {showMacOcr && <TableHead>macOCR</TableHead>}
+                        {showSurya && <TableHead>Surya</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -329,8 +511,12 @@ export function PageOcrTable({
                             extractedPages={extractedPages}
                             onCropPage={onCropPage}
                             clipPath={clipPath}
-                            ocrReady={ocrReady}
-                            ocrText={ocrTextByPage[p]}
+                            macOcrReady={macOcrReady}
+                            macOcrText={macOcrTextByPage[p]}
+                            suryaReady={suryaReady}
+                            suryaText={suryaTextByPage[p]}
+                            showMacOcr={showMacOcr}
+                            showSurya={showSurya}
                         />
                     ))}
                 </TableBody>

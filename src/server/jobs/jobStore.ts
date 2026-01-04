@@ -23,6 +23,8 @@ export type Job = {
     error?: string;
     // Optional; default behavior should treat missing as {status:'idle'}.
     ocr?: JobOcr;
+    // Optional; surya OCR status tracked separately for parallel execution.
+    suryaOcr?: JobOcr;
     // Optional; informational only (dedupe is by content hash).
     sourceUrl?: string;
 };
