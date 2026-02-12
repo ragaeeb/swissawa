@@ -9,7 +9,20 @@ export type JobProgress = { extractedPages: number; totalPages?: number };
 
 export type JobOcrStatus = 'idle' | 'running' | 'complete' | 'error';
 
-export type JobOcr = { status: JobOcrStatus; language?: string; error?: string; meta?: OcrMeta; updatedAtMs: number };
+export type JobOcr = {
+    status: JobOcrStatus;
+    language?: string;
+    error?: string;
+    meta?: OcrMeta;
+    updatedAtMs: number;
+    backend?: 'local' | 'github_actions';
+    requestId?: string;
+    runId?: number;
+    artifactName?: string;
+    workflowUrl?: string;
+    startedAtMs?: number;
+    lastCheckedAtMs?: number;
+};
 
 export type Job = {
     id: string;

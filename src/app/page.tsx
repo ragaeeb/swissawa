@@ -8,9 +8,11 @@ import { UploadZone } from '@/components/UploadZone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { uploadthingClient } from '@/lib/uploadthing';
 import type { CropBox } from '@/server/crop/crop';
 
 export default function Home() {
+    const uploadMode = process.env.NEXT_PUBLIC_SWISSAWA_UPLOAD_MODE === 'uploadthing' ? 'uploadthing' : 'direct';
     const [uploading, setUploading] = useState(false);
     const [urlUploading, setUrlUploading] = useState(false);
     const [pdfUrl, setPdfUrl] = useState('');
@@ -189,10 +191,23 @@ export default function Home() {
             setCropOpen(false);
             setCropPage(null);
 
-            const form = new FormData();
-            form.append('file', file);
-
-            const resp = await fetch('/api/upload', { body: form, method: 'POST' });
+            let resp: Response;
+            if (uploadMode === 'uploadthing') {
+                const uploaded = await uploadthingClient.uploadFiles('pdfUploader', { files: [file] });
+                const key = uploaded[0]?.key;
+                if (!key) {
+                    throw new Error('UploadThing upload did not return a file key');
+                }
+                resp = await fetch('/api/uploadthing/ingest', {
+                    body: JSON.stringify({ key }),
+                    headers: { 'content-type': 'application/json' },
+                    method: 'POST',
+                });
+            } else {
+                const form = new FormData();
+                form.append('file', file);
+                resp = await fetch('/api/upload', { body: form, method: 'POST' });
+            }
             if (!resp.ok) {
                 const body = await resp.json().catch(() => null);
                 throw new Error(body?.error ?? `Upload failed (${resp.status})`);

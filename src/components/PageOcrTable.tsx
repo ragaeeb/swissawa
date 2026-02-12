@@ -1,5 +1,6 @@
 'use client';
 
+import { reconstructParagraphs } from 'kokokor';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { cropBoxToClipPathInset } from '@/server/crop/crop';
 
 type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
 type OcrEngine = 'macOCR' | 'surya' | 'both';
+type OcrTextMode = 'lines' | 'paragraphs';
+type OcrPageText = { lines: string; paragraphs: string };
 
 type OcrProgress = { line: string; currentPage?: number; totalPages?: number; phase?: string };
 
@@ -55,14 +58,23 @@ async function fetchOcrTextForPage(
     pageNumber: number,
     engine: 'ocr' | 'surya',
     signal: AbortSignal,
-): Promise<string | null> {
+): Promise<OcrPageText | null> {
     try {
         const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/${engine}/pages/${pageNumber}`, { signal });
         if (!res.ok) {
             return null;
         }
         const page = (await res.json()) as ObservationPage;
-        return page.observations.map((o) => o.text).join('\n');
+        const lines = page.observations.map((o) => o.text).join('\n');
+        try {
+            const reconstructed = reconstructParagraphs({
+                observations: page.observations,
+                page: { dpiX: 72, dpiY: 72, height: page.height, width: page.width },
+            });
+            return { lines, paragraphs: reconstructed.text || lines };
+        } catch {
+            return { lines, paragraphs: lines };
+        }
     } catch (err: unknown) {
         // AbortError is expected when component unmounts or job changes
         if (err instanceof Error && err.name === 'AbortError') {
@@ -200,13 +212,14 @@ export function PageOcrTable({
 }) {
     const clipPath = useMemo(() => (crop ? cropBoxToClipPathInset(crop) : undefined), [crop]);
     const [selectedEngine, setSelectedEngine] = useState<OcrEngine>('both');
+    const [ocrTextMode, setOcrTextMode] = useState<OcrTextMode>('lines');
 
     // macOCR state
     const [macOcrStatus, setMacOcrStatus] = useState<OcrStatus>('idle');
     const [macOcrError, setMacOcrError] = useState<string | null>(null);
     const [macOcrProgress, setMacOcrProgress] = useState<OcrProgress | null>(null);
     const [macOcrReady, setMacOcrReady] = useState(false);
-    const [macOcrTextByPage, setMacOcrTextByPage] = useState<Record<number, string>>({});
+    const [macOcrTextByPage, setMacOcrTextByPage] = useState<Record<number, OcrPageText>>({});
     const macOcrEsRef = useRef<EventSource | null>(null);
 
     // Surya state
@@ -214,7 +227,7 @@ export function PageOcrTable({
     const [suryaError, setSuryaError] = useState<string | null>(null);
     const [suryaProgress, setSuryaProgress] = useState<OcrProgress | null>(null);
     const [suryaReady, setSuryaReady] = useState(false);
-    const [suryaTextByPage, setSuryaTextByPage] = useState<Record<number, string>>({});
+    const [suryaTextByPage, setSuryaTextByPage] = useState<Record<number, OcrPageText>>({});
     const suryaEsRef = useRef<EventSource | null>(null);
 
     const showMacOcr = selectedEngine === 'macOCR' || selectedEngine === 'both';
@@ -465,6 +478,13 @@ export function PageOcrTable({
                     <Button type="button" variant="secondary" onClick={runOcr} disabled={isRunning}>
                         {isRunning ? 'Running OCR…' : 'Run OCR'}
                     </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setOcrTextMode((mode) => (mode === 'lines' ? 'paragraphs' : 'lines'))}
+                    >
+                        {ocrTextMode === 'lines' ? 'Use Paragraph Blocks' : 'Use OCR Lines'}
+                    </Button>
                 </div>
             </div>
 
@@ -512,9 +532,9 @@ export function PageOcrTable({
                             onCropPage={onCropPage}
                             clipPath={clipPath}
                             macOcrReady={macOcrReady}
-                            macOcrText={macOcrTextByPage[p]}
+                            macOcrText={macOcrTextByPage[p]?.[ocrTextMode]}
                             suryaReady={suryaReady}
-                            suryaText={suryaTextByPage[p]}
+                            suryaText={suryaTextByPage[p]?.[ocrTextMode]}
                             showMacOcr={showMacOcr}
                             showSurya={showSurya}
                         />

@@ -1,11 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto';
-import * as fsp from 'node:fs/promises';
 import { parseMultipartStream } from '@mjackson/multipart-parser';
-import { readHashIndex, writeHashIndex } from '@/server/jobs/hashIndex';
-import { jobDir, jobImagesDir, jobPdfPath } from '@/server/jobs/jobPaths';
-import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
-import { globalJobStore } from '@/server/jobs/jobStore';
-import { runPdfExtractionJob } from '@/server/pdf/runner';
+import { createJobFromPdfBytes } from '@/server/jobs/createJobFromPdfBytes';
 
 export const runtime = 'nodejs';
 
@@ -80,43 +74,12 @@ export const POST = async (request: Request): Promise<Response> => {
             return Response.json({ error: 'No file uploaded' }, { status: 400 });
         }
 
-        const sha256 = createHash('sha256').update(fileBytes).digest('hex');
-        const existing = await readHashIndex(sha256);
-        if (existing) {
-            console.info('[upload.reuse]', { jobId: existing.jobId, sha256 });
-            return Response.json({ jobId: existing.jobId, reused: true, sha256 });
-        }
-
-        const jobId = randomUUID();
-        const dir = jobDir(jobId);
-        const outputDir = jobImagesDir(jobId);
-        const pdfPath = jobPdfPath(jobId);
-
-        await fsp.mkdir(dir, { recursive: true });
-        await fsp.writeFile(pdfPath, fileBytes);
-
-        const job = globalJobStore.create({
-            id: jobId,
-            info: undefined,
-            outputDir,
-            pdfPath,
-            progress: { extractedPages: 0, totalPages: undefined },
-            status: 'uploaded',
+        const created = await createJobFromPdfBytes({ bytes: fileBytes });
+        console.info(created.reused ? '[upload.reuse]' : '[upload.created]', {
+            jobId: created.jobId,
+            sha256: created.sha256,
         });
-        await writeJobSnapshot(job);
-        await writeHashIndex({ createdAtMs: Date.now(), hash: sha256, jobId });
-        console.info('[upload.created]', { jobId, sha256 });
-
-        runPdfExtractionJob({ jobId, store: globalJobStore }).catch((err: unknown) => {
-            const bus = globalJobStore.bus(jobId);
-            globalJobStore.update(jobId, (j) => {
-                j.status = 'error';
-                j.error = err instanceof Error ? err.message : 'Unknown error';
-            });
-            bus?.emit('error', err instanceof Error ? err.message : 'Unknown error');
-        });
-
-        return Response.json({ jobId, reused: false, sha256 });
+        return Response.json(created);
     } catch (err: any) {
         if (
             err instanceof Error &&

@@ -1,10 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
-import * as fsp from 'node:fs/promises';
-import { readHashIndex, writeHashIndex } from '@/server/jobs/hashIndex';
-import { jobDir, jobImagesDir, jobPdfPath } from '@/server/jobs/jobPaths';
-import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
-import { globalJobStore } from '@/server/jobs/jobStore';
-import { runPdfExtractionJob } from '@/server/pdf/runner';
+import { createJobFromPdfBytes } from '@/server/jobs/createJobFromPdfBytes';
 
 export const runtime = 'nodejs';
 
@@ -89,45 +83,13 @@ export async function POST(request: Request): Promise<Response> {
         }
 
         const bytes = await readAllBytesWithLimit(res.body, maxBytes);
-        const sha256 = createHash('sha256').update(bytes).digest('hex');
-
-        const existing = await readHashIndex(sha256);
-        if (existing) {
-            console.info('[upload.url.reuse]', { jobId: existing.jobId, sha256, url });
-            return Response.json({ jobId: existing.jobId, reused: true, sha256 });
-        }
-
-        const jobId = randomUUID();
-        const dir = jobDir(jobId);
-        const outputDir = jobImagesDir(jobId);
-        const pdfPath = jobPdfPath(jobId);
-
-        await fsp.mkdir(dir, { recursive: true });
-        await fsp.writeFile(pdfPath, bytes);
-
-        const job = globalJobStore.create({
-            id: jobId,
-            info: undefined,
-            outputDir,
-            pdfPath,
-            progress: { extractedPages: 0, totalPages: undefined },
-            sourceUrl: url,
-            status: 'uploaded',
+        const created = await createJobFromPdfBytes({ bytes, sourceUrl: url });
+        console.info(created.reused ? '[upload.url.reuse]' : '[upload.url.created]', {
+            jobId: created.jobId,
+            sha256: created.sha256,
+            url,
         });
-        await writeJobSnapshot(job);
-        await writeHashIndex({ createdAtMs: Date.now(), hash: sha256, jobId });
-        console.info('[upload.url.created]', { jobId, sha256, url });
-
-        runPdfExtractionJob({ jobId, store: globalJobStore }).catch((err: unknown) => {
-            const bus = globalJobStore.bus(jobId);
-            globalJobStore.update(jobId, (j) => {
-                j.status = 'error';
-                j.error = err instanceof Error ? err.message : 'Unknown error';
-            });
-            bus?.emit('error', err instanceof Error ? err.message : 'Unknown error');
-        });
-
-        return Response.json({ jobId, reused: false, sha256 });
+        return Response.json(created);
     } catch (err: unknown) {
         if (err instanceof Error && err.message.includes('maximum allowed size')) {
             return Response.json({ error: err.message }, { status: 413 });
