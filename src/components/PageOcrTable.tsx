@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { ObservationPage } from '@/lib/macOcr';
+import type { Coordinates, ObservationPage } from '@/lib/macOcr';
+import type { AnalyzeApiResponse } from '@/lib/skalu';
 import type { CropBox } from '@/server/crop/crop';
 import { cropBoxToClipPathInset } from '@/server/crop/crop';
 
@@ -13,8 +14,11 @@ type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
 type OcrEngine = 'macOCR' | 'surya' | 'both';
 type OcrTextMode = 'lines' | 'paragraphs';
 type OcrPageText = { lines: string; paragraphs: string };
+type OcrPagesResponse = { dpi?: Coordinates; pages: ObservationPage[] };
+type HorizontalLinesByPage = Record<number, Array<{ height: number; width: number; x: number; y: number }>>;
 
 type OcrProgress = { line: string; currentPage?: number; totalPages?: number; phase?: string };
+const DEFAULT_DPI: Coordinates = { x: 72, y: 72 };
 
 function isProbablyRtl(text: string): boolean {
     return /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
@@ -53,37 +57,83 @@ function scheduleOcrStatusSyncs(params: {
     }
 }
 
-async function fetchOcrTextForPage(
+const normalizeDpi = (dpi: Coordinates | undefined): Coordinates => {
+    if (!dpi) {
+        return DEFAULT_DPI;
+    }
+    const x = Number(dpi.x);
+    const y = Number(dpi.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x <= 0 || y <= 0) {
+        return DEFAULT_DPI;
+    }
+    return { x, y };
+};
+
+const pageToOcrPageText = (params: {
+    dpi: Coordinates;
+    horizontalLines: HorizontalLinesByPage[number];
+    page: ObservationPage;
+}): OcrPageText => {
+    const { dpi, horizontalLines, page } = params;
+    const lines = page.observations.map((o) => o.text).join('\n');
+    try {
+        const reconstructed = reconstructParagraphs(
+            {
+                observations: page.observations,
+                page: { dpiX: dpi.x, dpiY: dpi.y, height: page.height, width: page.width },
+            },
+            { line: { horizontalLines } },
+        );
+        return { lines, paragraphs: reconstructed.text || lines };
+    } catch {
+        return { lines, paragraphs: lines };
+    }
+};
+
+const fetchOcrPages = async (
     jobId: string,
-    pageNumber: number,
     engine: 'ocr' | 'surya',
     signal: AbortSignal,
-): Promise<OcrPageText | null> {
+): Promise<OcrPagesResponse | null> => {
     try {
-        const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/${engine}/pages/${pageNumber}`, { signal });
+        const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/${engine}/pages`, { signal });
         if (!res.ok) {
             return null;
         }
-        const page = (await res.json()) as ObservationPage;
-        const lines = page.observations.map((o) => o.text).join('\n');
-        try {
-            const reconstructed = reconstructParagraphs({
-                observations: page.observations,
-                page: { dpiX: 72, dpiY: 72, height: page.height, width: page.width },
-            });
-            return { lines, paragraphs: reconstructed.text || lines };
-        } catch {
-            return { lines, paragraphs: lines };
-        }
+        return (await res.json()) as OcrPagesResponse;
     } catch (err: unknown) {
         // AbortError is expected when component unmounts or job changes
         if (err instanceof Error && err.name === 'AbortError') {
             return null;
         }
-        console.warn('[fetchOcrTextForPage.error]', { engine, err, jobId, pageNumber });
+        console.warn('[fetchOcrPages.error]', { engine, err, jobId });
         return null;
     }
-}
+};
+
+const mapPagesToTextByPage = (params: {
+    horizontalLinesByPage: HorizontalLinesByPage;
+    payload: OcrPagesResponse | null;
+}): Record<number, OcrPageText> => {
+    const { horizontalLinesByPage, payload } = params;
+    if (!payload) {
+        return {};
+    }
+
+    const dpi = normalizeDpi(payload.dpi);
+    const textByPage: Record<number, OcrPageText> = {};
+    for (const page of payload.pages) {
+        if (!Number.isInteger(page.page) || page.page <= 0) {
+            continue;
+        }
+        textByPage[page.page] = pageToOcrPageText({
+            dpi,
+            horizontalLines: horizontalLinesByPage[page.page] ?? [],
+            page,
+        });
+    }
+    return textByPage;
+};
 
 function OcrTextCell({
     ready,
@@ -192,10 +242,14 @@ function PageRow({
 }
 
 export function PageOcrTable({
+    analyzeResult,
+    canDetectStructures,
     canLoadMore,
     crop,
+    detectingStructures,
     extractedPages,
     jobId,
+    onDetectStructures,
     onCropPage,
     onLoadMore,
     pages,
@@ -206,12 +260,16 @@ export function PageOcrTable({
     pages: number;
     extractedPages: number;
     crop: CropBox | null;
+    analyzeResult: AnalyzeApiResponse | null;
+    canDetectStructures: boolean;
+    detectingStructures: boolean;
     canLoadMore: boolean;
+    onDetectStructures: () => void;
     onLoadMore: () => void;
     onCropPage: (pageNumber: number) => void;
 }) {
     const clipPath = useMemo(() => (crop ? cropBoxToClipPathInset(crop) : undefined), [crop]);
-    const [selectedEngine, setSelectedEngine] = useState<OcrEngine>('both');
+    const [selectedEngine, setSelectedEngine] = useState<OcrEngine>('macOCR');
     const [ocrTextMode, setOcrTextMode] = useState<OcrTextMode>('lines');
 
     // macOCR state
@@ -219,7 +277,7 @@ export function PageOcrTable({
     const [macOcrError, setMacOcrError] = useState<string | null>(null);
     const [macOcrProgress, setMacOcrProgress] = useState<OcrProgress | null>(null);
     const [macOcrReady, setMacOcrReady] = useState(false);
-    const [macOcrTextByPage, setMacOcrTextByPage] = useState<Record<number, OcrPageText>>({});
+    const [macOcrPayload, setMacOcrPayload] = useState<OcrPagesResponse | null>(null);
     const macOcrEsRef = useRef<EventSource | null>(null);
 
     // Surya state
@@ -227,11 +285,32 @@ export function PageOcrTable({
     const [suryaError, setSuryaError] = useState<string | null>(null);
     const [suryaProgress, setSuryaProgress] = useState<OcrProgress | null>(null);
     const [suryaReady, setSuryaReady] = useState(false);
-    const [suryaTextByPage, setSuryaTextByPage] = useState<Record<number, OcrPageText>>({});
+    const [suryaPayload, setSuryaPayload] = useState<OcrPagesResponse | null>(null);
     const suryaEsRef = useRef<EventSource | null>(null);
 
     const showMacOcr = selectedEngine === 'macOCR' || selectedEngine === 'both';
     const showSurya = selectedEngine === 'surya' || selectedEngine === 'both';
+
+    const horizontalLinesByPage = useMemo<HorizontalLinesByPage>(() => {
+        const byPage: HorizontalLinesByPage = {};
+        for (const page of analyzeResult?.pages ?? []) {
+            if (!Number.isInteger(page.page) || page.page <= 0 || !Array.isArray(page.horizontal_lines)) {
+                continue;
+            }
+            byPage[page.page] = page.horizontal_lines;
+        }
+        return byPage;
+    }, [analyzeResult]);
+
+    const macOcrTextByPage = useMemo(
+        () => mapPagesToTextByPage({ horizontalLinesByPage, payload: macOcrPayload }),
+        [horizontalLinesByPage, macOcrPayload],
+    );
+
+    const suryaTextByPage = useMemo(
+        () => mapPagesToTextByPage({ horizontalLinesByPage, payload: suryaPayload }),
+        [horizontalLinesByPage, suryaPayload],
+    );
 
     const createEventSource = useCallback(
         (
@@ -320,12 +399,12 @@ export function PageOcrTable({
         setMacOcrError(null);
         setMacOcrProgress(null);
         setMacOcrReady(false);
-        setMacOcrTextByPage({});
+        setMacOcrPayload(null);
         setSuryaStatus('idle');
         setSuryaError(null);
         setSuryaProgress(null);
         setSuryaReady(false);
-        setSuryaTextByPage({});
+        setSuryaPayload(null);
 
         macOcrEsRef.current?.close();
         macOcrEsRef.current = null;
@@ -355,6 +434,7 @@ export function PageOcrTable({
         const promises: Promise<void>[] = [];
 
         if (showMacOcr) {
+            setMacOcrPayload(null);
             ensureMacOcrEventSource();
             promises.push(
                 (async () => {
@@ -375,6 +455,7 @@ export function PageOcrTable({
         }
 
         if (showSurya) {
+            setSuryaPayload(null);
             ensureSuryaEventSource();
             promises.push(
                 (async () => {
@@ -397,45 +478,45 @@ export function PageOcrTable({
         await Promise.all(promises);
     };
 
-    // Fetch macOCR text for pages
+    // Fetch macOCR text once for all pages when ready.
     useEffect(() => {
         if (!macOcrReady) {
             return;
         }
+        if (macOcrPayload) {
+            return;
+        }
+
         const controller = new AbortController();
         void (async () => {
-            for (const p of previewPages) {
-                if (controller.signal.aborted || p > extractedPages || macOcrTextByPage[p]) {
-                    continue;
-                }
-                const text = await fetchOcrTextForPage(jobId, p, 'ocr', controller.signal);
-                if (text) {
-                    setMacOcrTextByPage((m) => ({ ...m, [p]: text }));
-                }
+            const payload = await fetchOcrPages(jobId, 'ocr', controller.signal);
+            if (!payload || controller.signal.aborted) {
+                return;
             }
+            setMacOcrPayload(payload);
         })();
         return () => controller.abort();
-    }, [extractedPages, jobId, macOcrReady, macOcrTextByPage, previewPages]);
+    }, [jobId, macOcrPayload, macOcrReady]);
 
-    // Fetch Surya text for pages
+    // Fetch Surya text once for all pages when ready.
     useEffect(() => {
         if (!suryaReady) {
             return;
         }
+        if (suryaPayload) {
+            return;
+        }
+
         const controller = new AbortController();
         void (async () => {
-            for (const p of previewPages) {
-                if (controller.signal.aborted || p > extractedPages || suryaTextByPage[p]) {
-                    continue;
-                }
-                const text = await fetchOcrTextForPage(jobId, p, 'surya', controller.signal);
-                if (text) {
-                    setSuryaTextByPage((m) => ({ ...m, [p]: text }));
-                }
+            const payload = await fetchOcrPages(jobId, 'surya', controller.signal);
+            if (!payload || controller.signal.aborted) {
+                return;
             }
+            setSuryaPayload(payload);
         })();
         return () => controller.abort();
-    }, [extractedPages, jobId, suryaReady, suryaTextByPage, previewPages]);
+    }, [jobId, suryaPayload, suryaReady]);
 
     const formatProgressLabel = (progress: OcrProgress | null, status: OcrStatus, label: string): string | null => {
         if (status !== 'running') {
@@ -484,6 +565,21 @@ export function PageOcrTable({
                         onClick={() => setOcrTextMode((mode) => (mode === 'lines' ? 'paragraphs' : 'lines'))}
                     >
                         {ocrTextMode === 'lines' ? 'Use Paragraph Blocks' : 'Use OCR Lines'}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onDetectStructures}
+                        disabled={detectingStructures || !canDetectStructures}
+                    >
+                        {detectingStructures ? (
+                            <>
+                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                Detecting...
+                            </>
+                        ) : (
+                            'Detect Structures'
+                        )}
                     </Button>
                 </div>
             </div>

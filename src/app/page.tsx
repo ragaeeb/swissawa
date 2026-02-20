@@ -8,6 +8,7 @@ import { UploadZone } from '@/components/UploadZone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { AnalyzeApiResponse } from '@/lib/skalu';
 import { uploadthingClient } from '@/lib/uploadthing';
 import type { CropBox } from '@/server/crop/crop';
 
@@ -22,10 +23,13 @@ export default function Home() {
     const [pages, setPages] = useState<number | null>(null);
     const [extractedPages, setExtractedPages] = useState<number>(0);
     const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
+    const [jobSourceUrl, setJobSourceUrl] = useState<string | null>(null);
     const [previewCount, setPreviewCount] = useState<number>(24);
     const [crop, setCrop] = useState<CropBox | null>(null);
     const [cropPage, setCropPage] = useState<number | null>(null);
     const [cropOpen, setCropOpen] = useState(false);
+    const [detectingStructures, setDetectingStructures] = useState(false);
+    const [analyzeResult, setAnalyzeResult] = useState<AnalyzeApiResponse | null>(null);
 
     const esRef = useRef<EventSource | null>(null);
 
@@ -44,9 +48,31 @@ export default function Home() {
             return;
         }
         const saved = localStorage.getItem('swissawa:lastJobId');
-        if (saved) {
-            setJobId(saved);
+        if (!saved) {
+            return;
         }
+
+        const controller = new AbortController();
+        void (async () => {
+            try {
+                const res = await fetch(`/api/jobs/${encodeURIComponent(saved)}`, { signal: controller.signal });
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        localStorage.removeItem('swissawa:lastJobId');
+                    }
+                    return;
+                }
+                setJobId(saved);
+            } catch (err: unknown) {
+                if (err instanceof Error && err.name === 'AbortError') {
+                    return;
+                }
+            }
+        })();
+
+        return () => {
+            controller.abort();
+        };
     }, [jobId]);
 
     const progressPct = useMemo(() => {
@@ -61,6 +87,7 @@ export default function Home() {
             status: string;
             progress: { extractedPages?: number; totalPages?: number };
             info?: Record<string, unknown> | null;
+            sourceUrl?: string;
         };
     };
 
@@ -82,6 +109,7 @@ export default function Home() {
                 setExtractedPages(data.job.progress.extractedPages ?? 0);
                 setPages(data.job.progress.totalPages ?? null);
                 setMeta(data.job.info ?? null);
+                setJobSourceUrl(data.job.sourceUrl ?? null);
             } catch (err: unknown) {
                 if (err instanceof Error && err.name === 'AbortError') {
                     return;
@@ -116,6 +144,7 @@ export default function Home() {
             setExtractedPages(data.job.progress.extractedPages ?? 0);
             setPages(data.job.progress.totalPages ?? null);
             setMeta(data.job.info ?? null);
+            setJobSourceUrl(typeof data.job.sourceUrl === 'string' ? data.job.sourceUrl : null);
         });
 
         es.addEventListener('pdf', (ev) => {
@@ -186,6 +215,8 @@ export default function Home() {
             setJobId(null);
             setPages(null);
             setMeta(null);
+            setJobSourceUrl(null);
+            setAnalyzeResult(null);
             setExtractedPages(0);
             setCrop(null);
             setCropOpen(false);
@@ -244,6 +275,8 @@ export default function Home() {
             setJobId(null);
             setPages(null);
             setMeta(null);
+            setJobSourceUrl(null);
+            setAnalyzeResult(null);
             setExtractedPages(0);
             setCrop(null);
             setCropOpen(false);
@@ -267,6 +300,35 @@ export default function Home() {
             setStatus('error');
         } finally {
             setUrlUploading(false);
+        }
+    };
+
+    const detectStructures = async () => {
+        const url = pdfUrl.trim() || jobSourceUrl?.trim() || '';
+        if (!url) {
+            return;
+        }
+
+        try {
+            setDetectingStructures(true);
+            const res = await fetch('/api/skalu/analyze', {
+                body: JSON.stringify({ url }),
+                headers: { 'content-type': 'application/json' },
+                method: 'POST',
+            });
+
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                throw new Error(body?.error ?? `Detect structures failed (${res.status})`);
+            }
+
+            const data = (await res.json()) as AnalyzeApiResponse;
+            setAnalyzeResult(data);
+            console.info('[skalu.detect-structures.result]', data);
+        } catch (err: unknown) {
+            console.error('[skalu.detect-structures.error]', err);
+        } finally {
+            setDetectingStructures(false);
         }
     };
 
@@ -303,6 +365,8 @@ export default function Home() {
             setJobId(null);
             setPages(null);
             setMeta(null);
+            setJobSourceUrl(null);
+            setAnalyzeResult(null);
             setExtractedPages(0);
             setStatus('idle');
             setPreviewCount(24);
@@ -393,6 +457,12 @@ export default function Home() {
                         previewPages={previewPages}
                         onLoadMore={() => setPreviewCount((c) => c + 24)}
                         canLoadMore={canLoadMore}
+                        canDetectStructures={Boolean(pdfUrl.trim() || jobSourceUrl?.trim())}
+                        detectingStructures={detectingStructures}
+                        onDetectStructures={() => {
+                            void detectStructures();
+                        }}
+                        analyzeResult={analyzeResult}
                         crop={crop}
                         onCropPage={(p) => {
                             setCropPage(p);
