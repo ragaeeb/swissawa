@@ -7,15 +7,15 @@ import { globalJobStore } from '@/server/jobs/jobStore';
 import { jobOcrDir, jobOcrJsonPath } from '@/server/ocr/ocrPaths';
 import { GET, POST } from './route';
 
-mock.module('@/server/ocr/runMacOcr', () => ({
-    runMacOcr: mock(async ({ jobId, store }: { jobId: string; store: any }) => {
-        store.update(jobId, (j: any) => {
-            j.ocr = { language: 'ar-SA', status: 'complete', updatedAtMs: Date.now() };
-        });
-        await fsp.mkdir(jobOcrDir(jobId), { recursive: true });
-        await fsp.writeFile(jobOcrJsonPath(jobId), JSON.stringify({ dpi: { x: 300, y: 300 }, pages: [] }), 'utf8');
-    }),
-}));
+const providerStartMock = mock(async ({ jobId, store }: { jobId: string; store: any }) => {
+    store.update(jobId, (j: any) => {
+        j.ocr = { language: 'ar-SA', status: 'complete', updatedAtMs: Date.now() };
+    });
+    await fsp.mkdir(jobOcrDir(jobId), { recursive: true });
+    await fsp.writeFile(jobOcrJsonPath(jobId), JSON.stringify({ dpi: { x: 300, y: 300 }, pages: [] }), 'utf8');
+});
+
+mock.module('@/server/ocr/providers', () => ({ getMacOcrProvider: () => ({ start: providerStartMock }) }));
 
 describe('GET/POST /api/jobs/[jobId]/ocr', () => {
     let jobId = '';
@@ -31,6 +31,7 @@ describe('GET/POST /api/jobs/[jobId]/ocr', () => {
     }
 
     beforeEach(async () => {
+        providerStartMock.mockClear();
         jobId = randomUUID();
         await fsp.mkdir(jobDir(jobId), { recursive: true });
         await fsp.writeFile(jobPdfPath(jobId), '%PDF-1.7 fake', 'utf8');
@@ -63,6 +64,7 @@ describe('GET/POST /api/jobs/[jobId]/ocr', () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.status).toBe('running');
+        expect(providerStartMock).toHaveBeenCalledTimes(1);
 
         // Ensure background OCR finishes before test cleanup (prevents noisy logs).
         await waitForAsync(async () => {

@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import { readJobSnapshot } from '@/server/jobs/jobSnapshot';
 import { globalJobStore } from '@/server/jobs/jobStore';
-import { jobSuryaMetaPath, jobSuryaOcrJsonPath, jobSuryaPagesDir } from '@/server/ocr/ocrPaths';
+import { jobSuryaMetaPath, jobSuryaPagesDir } from '@/server/ocr/ocrPaths';
 import { runSuryaOcr } from '@/server/ocr/runSuryaOcr';
 
 export const runtime = 'nodejs';

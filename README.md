@@ -22,7 +22,7 @@
 
 ### Requirements
 
-- **Bun**: `>=1.3.5`
+- **Bun**: `>=1.3.9`
 - **Node.js**: `>=24`
 - **Poppler** (PDF rendering): `pdfinfo`, `pdftocairo`
 - **macOCR** (Arabic OCR): macOS Vision-based CLI tool
@@ -90,6 +90,11 @@ bun test
 - `GET /api/jobs/:jobId/ocr`: Check OCR status.
 - `GET /api/jobs/:jobId/ocr/events`: OCR progress stream (SSE).
 - `GET /api/jobs/:jobId/ocr/pages/:page`: Fetch extracted text for a specific page.
+- `GET /api/jobs/:jobId/ocr/file`: Fetch full OCR JSON file.
+
+### UploadThing
+- `POST /api/uploadthing`: UploadThing route handler.
+- `POST /api/uploadthing/ingest`: Convert UploadThing file key into a swissawa job.
 
 ### OCR (Surya)
 - `POST /api/jobs/:jobId/surya`: Trigger Surya OCR process.
@@ -104,6 +109,135 @@ bun test
 - QA/diffing tools for ground truth verification.
 
 See `AGENTS.md` for deep-dive architecture notes and development pitfalls.
+
+## Remote OCR (PAT-first)
+
+This repo supports a cloud-offloaded macOCR backend using GitHub Actions.
+
+### Environment variables
+
+Current runtime auth in this repo is **PAT-first** (`SWISSAWA_GH_PAT`).  
+The auth layer is abstracted so you can migrate to GitHub App tokens later without changing provider call sites.
+
+Use this as a copy/paste baseline:
+
+```bash
+# OCR backend mode
+SWISSAWA_MAC_OCR_BACKEND=local
+
+# Remote OCR (required only when SWISSAWA_MAC_OCR_BACKEND=github_actions)
+SWISSAWA_GH_PAT=
+SWISSAWA_GH_OCR_REPO=ragaeeb/macOCR
+SWISSAWA_GH_OCR_WORKFLOW=ocr-remote.yml
+SWISSAWA_GH_OCR_REF=main
+SWISSAWA_GH_OCR_POLL_INTERVAL_MS=5000
+SWISSAWA_GH_OCR_TIMEOUT_MS=900000
+
+# Upload mode
+UPLOADTHING_TOKEN=
+NEXT_PUBLIC_SWISSAWA_UPLOAD_MODE=direct
+```
+
+### How to get each value
+
+- `SWISSAWA_MAC_OCR_BACKEND`:
+  - `local` keeps classic DX (local upload + local macOCR).
+  - `github_actions` offloads macOCR to GitHub Actions.
+- `SWISSAWA_GH_PAT`:
+  - Create a token in GitHub settings.
+  - Fine-grained PAT (preferred): grant repository **Actions: Read and write** on the OCR repo.
+  - If using classic PAT with private repos, `repo` scope works.
+- `SWISSAWA_GH_OCR_REPO`:
+  - `<owner>/<repo>` of the remote OCR repo (for example `ragaeeb/macOCR`).
+- `SWISSAWA_GH_OCR_WORKFLOW`:
+  - Workflow file name in that repo (for example `ocr-remote.yml`).
+- `SWISSAWA_GH_OCR_REF`:
+  - Git ref to dispatch against (usually `main`).
+- `SWISSAWA_GH_OCR_POLL_INTERVAL_MS`:
+  - How often swissawa polls run status. Start with `5000`.
+- `SWISSAWA_GH_OCR_TIMEOUT_MS`:
+  - Max wait before timeout. Default `900000` (15 minutes).
+- `UPLOADTHING_TOKEN`:
+  - In UploadThing dashboard, open your app and copy the token from **API Keys**.
+  - For v7 this is a single token carrying app info + secret.
+- `NEXT_PUBLIC_SWISSAWA_UPLOAD_MODE`:
+  - `direct` uses current server upload route.
+  - `uploadthing` uses UploadThing client upload + `/api/uploadthing/ingest`.
+
+### PAT setup (current runtime path)
+
+1. Open GitHub Settings -> Developer settings -> Personal access tokens.
+2. Create a fine-grained token (recommended) scoped to your OCR repo.
+3. Grant repository permission: `Actions: Read and write`.
+4. Save token as `SWISSAWA_GH_PAT` in your environment.
+5. Set `SWISSAWA_MAC_OCR_BACKEND=github_actions` and test `POST /api/jobs/:jobId/ocr`.
+
+### GitHub App setup (recommended for production, migration-ready)
+
+The app code currently uses PAT auth at runtime.  
+Use this section to prepare migration values and install the app with correct permissions.
+
+1. Create app:
+   - GitHub -> Settings -> Developer settings -> GitHub Apps -> New GitHub App.
+   - Set name and homepage URL.
+   - Webhook: keep **inactive** for polling-only MVP.
+   - Visibility: choose private ("Only on this account") unless you need multi-account installs.
+2. Configure repository permissions (minimum for this OCR flow):
+   - `Actions: Read and write` (dispatch workflows + read runs/artifacts).
+   - `Contents: Read` (repo metadata/workflow context reads).
+   - `Metadata: Read` is included automatically.
+3. Install app:
+   - Open the app settings page -> `Install App`.
+   - Install on the account/org owning the OCR repo.
+   - Choose target repo(s), including your OCR repo.
+4. Generate private key:
+   - In app settings, under `Private keys`, click `Generate a private key`.
+   - Download and store it securely (GitHub only stores the public portion).
+5. Record IDs:
+   - `App ID`: on the app settings page.
+   - `Installation ID`: get via API (`GET /repos/{owner}/{repo}/installation`) or from app installation context.
+6. Keep migration env names ready (planned, not active in runtime yet):
+   - `SWISSAWA_GH_APP_ID`
+   - `SWISSAWA_GH_APP_PRIVATE_KEY`
+   - `SWISSAWA_GH_APP_INSTALLATION_ID`
+
+### Local DX defaults
+
+- Keep local upload + local macOCR:
+  - `SWISSAWA_MAC_OCR_BACKEND=local`
+  - `NEXT_PUBLIC_SWISSAWA_UPLOAD_MODE=direct`
+
+### Deployed cloud mode
+
+- Use UploadThing ingest + GitHub Actions OCR:
+  - `SWISSAWA_MAC_OCR_BACKEND=github_actions`
+  - `NEXT_PUBLIC_SWISSAWA_UPLOAD_MODE=uploadthing`
+
+Auth decision and migration notes to GitHub App are documented in:
+`docs/decisions/0001-remote-ocr-auth.md`.
+
+### Reference docs (verified)
+
+- GitHub workflow dispatch endpoint and required permissions:
+  - <https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event>
+- GitHub workflow runs:
+  - <https://docs.github.com/en/rest/actions/workflow-runs>
+- GitHub artifacts:
+  - <https://docs.github.com/en/rest/actions/artifacts>
+- Registering a GitHub App:
+  - <https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app>
+- Choosing GitHub App permissions:
+  - <https://docs.github.com/apps/creating-github-apps/setting-up-a-github-app/choosing-permissions-for-a-github-app>
+- Installing your own GitHub App:
+  - <https://docs.github.com/en/developers/apps/managing-github-apps/installing-github-apps>
+- Managing GitHub App private keys:
+  - <https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps>
+- Generating installation access tokens:
+  - <https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app>
+- UploadThing v7 token model:
+  - <https://docs.uploadthing.com/v7>
+- UploadThing docs home:
+  - <https://docs.uploadthing.com/>
 
 ## License
 

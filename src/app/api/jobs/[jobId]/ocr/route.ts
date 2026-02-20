@@ -5,7 +5,7 @@ import { globalJobStore } from '@/server/jobs/jobStore';
 import type { OcrDeliveryPreferredKind } from '@/server/ocr/ocrDelivery';
 import { selectOcrDelivery } from '@/server/ocr/ocrDelivery';
 import { jobOcrJsonPath, jobOcrMetaPath, jobOcrPagesDir } from '@/server/ocr/ocrPaths';
-import { runMacOcr } from '@/server/ocr/runMacOcr';
+import { getMacOcrProvider } from '@/server/ocr/providers';
 
 export const runtime = 'nodejs';
 
@@ -84,7 +84,8 @@ export async function POST(_request: Request, ctx: { params: Promise<{ jobId: st
 
     // Fire-and-forget: OCR can take a long time; the UI should poll GET /ocr for status.
     console.info('[jobs.ocr.start]', { jobId });
-    void runMacOcr({ jobId, store: globalJobStore }).catch((err: unknown) => {
+    const provider = getMacOcrProvider();
+    void provider.start({ jobId, store: globalJobStore }).catch((err: unknown) => {
         console.error('[jobs.ocr]', { jobId, message: err instanceof Error ? err.message : String(err) });
     });
     return Response.json({ status: 'running' });
