@@ -1,11 +1,11 @@
 'use client';
 
-import { reconstructParagraphs } from 'kokokor';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Coordinates, ObservationPage } from '@/lib/macOcr';
+import { mapSkaluLayoutsByPage, type OcrPageText, type PageLayoutsByPage, pageToOcrPageText } from '@/lib/ocrPageText';
 import type { AnalyzeApiResponse } from '@/lib/skalu';
 import type { CropBox } from '@/server/crop/crop';
 import { cropBoxToClipPathInset } from '@/server/crop/crop';
@@ -13,9 +13,7 @@ import { cropBoxToClipPathInset } from '@/server/crop/crop';
 type OcrStatus = 'idle' | 'running' | 'complete' | 'error';
 type OcrEngine = 'macOCR' | 'surya' | 'both';
 type OcrTextMode = 'lines' | 'paragraphs';
-type OcrPageText = { lines: string; paragraphs: string };
 type OcrPagesResponse = { dpi?: Coordinates; pages: ObservationPage[] };
-type HorizontalLinesByPage = Record<number, Array<{ height: number; width: number; x: number; y: number }>>;
 
 type OcrProgress = { line: string; currentPage?: number; totalPages?: number; phase?: string };
 const DEFAULT_DPI: Coordinates = { x: 72, y: 72 };
@@ -69,27 +67,6 @@ const normalizeDpi = (dpi: Coordinates | undefined): Coordinates => {
     return { x, y };
 };
 
-const pageToOcrPageText = (params: {
-    dpi: Coordinates;
-    horizontalLines: HorizontalLinesByPage[number];
-    page: ObservationPage;
-}): OcrPageText => {
-    const { dpi, horizontalLines, page } = params;
-    const lines = page.observations.map((o) => o.text).join('\n');
-    try {
-        const reconstructed = reconstructParagraphs(
-            {
-                observations: page.observations,
-                page: { dpiX: dpi.x, dpiY: dpi.y, height: page.height, width: page.width },
-            },
-            { line: { horizontalLines } },
-        );
-        return { lines, paragraphs: reconstructed.text || lines };
-    } catch {
-        return { lines, paragraphs: lines };
-    }
-};
-
 const fetchOcrPages = async (
     jobId: string,
     engine: 'ocr' | 'surya',
@@ -112,10 +89,10 @@ const fetchOcrPages = async (
 };
 
 const mapPagesToTextByPage = (params: {
-    horizontalLinesByPage: HorizontalLinesByPage;
+    layoutsByPage: PageLayoutsByPage;
     payload: OcrPagesResponse | null;
 }): Record<number, OcrPageText> => {
-    const { horizontalLinesByPage, payload } = params;
+    const { layoutsByPage, payload } = params;
     if (!payload) {
         return {};
     }
@@ -126,11 +103,7 @@ const mapPagesToTextByPage = (params: {
         if (!Number.isInteger(page.page) || page.page <= 0) {
             continue;
         }
-        textByPage[page.page] = pageToOcrPageText({
-            dpi,
-            horizontalLines: horizontalLinesByPage[page.page] ?? [],
-            page,
-        });
+        textByPage[page.page] = pageToOcrPageText({ dpi, layout: layoutsByPage[page.page] ?? {}, page });
     }
     return textByPage;
 };
@@ -291,25 +264,16 @@ export function PageOcrTable({
     const showMacOcr = selectedEngine === 'macOCR' || selectedEngine === 'both';
     const showSurya = selectedEngine === 'surya' || selectedEngine === 'both';
 
-    const horizontalLinesByPage = useMemo<HorizontalLinesByPage>(() => {
-        const byPage: HorizontalLinesByPage = {};
-        for (const page of analyzeResult?.pages ?? []) {
-            if (!Number.isInteger(page.page) || page.page <= 0 || !Array.isArray(page.horizontal_lines)) {
-                continue;
-            }
-            byPage[page.page] = page.horizontal_lines;
-        }
-        return byPage;
-    }, [analyzeResult]);
+    const layoutsByPage = useMemo(() => mapSkaluLayoutsByPage(analyzeResult?.pages ?? []), [analyzeResult]);
 
     const macOcrTextByPage = useMemo(
-        () => mapPagesToTextByPage({ horizontalLinesByPage, payload: macOcrPayload }),
-        [horizontalLinesByPage, macOcrPayload],
+        () => mapPagesToTextByPage({ layoutsByPage, payload: macOcrPayload }),
+        [layoutsByPage, macOcrPayload],
     );
 
     const suryaTextByPage = useMemo(
-        () => mapPagesToTextByPage({ horizontalLinesByPage, payload: suryaPayload }),
-        [horizontalLinesByPage, suryaPayload],
+        () => mapPagesToTextByPage({ layoutsByPage, payload: suryaPayload }),
+        [layoutsByPage, suryaPayload],
     );
 
     const createEventSource = useCallback(
