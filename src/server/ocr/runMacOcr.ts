@@ -1,10 +1,16 @@
 import * as fsp from 'node:fs/promises';
+import path from 'node:path';
 import { isFullCropBox, normalizeCropBox } from '@/lib/cropConvert';
 import type { MacOCR } from '@/lib/macOcr';
 import { readCropBox } from '@/server/crop/cropStore';
 import { jobPdfPath } from '@/server/jobs/jobPaths';
 import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
 import type { JobOcr, JobStore } from '@/server/jobs/jobStore';
+import {
+    assertCanonicalRasterInput,
+    type CanonicalRasterInput,
+    createEngineRasterEnvelope,
+} from '@/server/ocr/canonicalRaster';
 import { emitOcrComplete, emitOcrError, emitOcrProgress } from '@/server/ocr/ocrEventBus';
 import { jobOcrDir, jobOcrInputPdfPath, jobOcrJsonPath } from '@/server/ocr/ocrPaths';
 import { spawn } from '@/server/ocr/spawn';
@@ -13,6 +19,8 @@ import { cropPdfBytes } from '@/server/pdf/cropPdf';
 
 export type RunMacOcrParams = {
     jobId: string;
+    /** Optional shared canonical raster. When present, no per-engine PDF crop is created. */
+    rasterInput?: CanonicalRasterInput;
     store: JobStore;
     language?: string; // default: ar-SA
     splitPages?: boolean; // default: true
@@ -112,11 +120,20 @@ export async function runMacOcr(params: RunMacOcrParams): Promise<void> {
         const ocrDir = jobOcrDir(params.jobId);
         await fsp.mkdir(ocrDir, { recursive: true });
 
-        const inputPdfBytes = await getOcrInputPdfBytes(params.jobId, params.store);
-        await fsp.writeFile(jobOcrInputPdfPath(params.jobId), inputPdfBytes);
+        let inputPath = jobOcrInputPdfPath(params.jobId);
+        let rasterEnvelope: ReturnType<typeof createEngineRasterEnvelope> | undefined;
+        if (params.rasterInput) {
+            assertCanonicalRasterInput(params.rasterInput);
+            inputPath = path.join(ocrDir, 'input.png');
+            await fsp.writeFile(inputPath, params.rasterInput.bytes);
+            rasterEnvelope = createEngineRasterEnvelope('macOCR', params.rasterInput.envelope);
+        } else {
+            const inputPdfBytes = await getOcrInputPdfBytes(params.jobId, params.store);
+            await fsp.writeFile(inputPath, inputPdfBytes);
+        }
 
         const outPath = jobOcrJsonPath(params.jobId);
-        const args = ['--language', language, '--output', outPath, jobOcrInputPdfPath(params.jobId)];
+        const args = ['--diagnostics', '--language', language, '--output', outPath, inputPath];
 
         await new Promise<void>((resolve, reject) => {
             // Use `script -q /dev/null` on macOS to force line-buffered output from macOCR.
@@ -154,7 +171,11 @@ export async function runMacOcr(params: RunMacOcrParams): Promise<void> {
         });
 
         const raw = await fsp.readFile(outPath, 'utf8');
-        const ocr = parseMacOcrJson(raw);
+        let ocr = parseMacOcrJson(raw);
+        if (rasterEnvelope) {
+            ocr = { ...ocr, pages: ocr.pages.map((page) => ({ ...page, raster: rasterEnvelope })) };
+            await fsp.writeFile(outPath, JSON.stringify(ocr, null, 2), 'utf8');
+        }
 
         // Always write meta.json (small), even if we don't split.
         const meta = buildOcrMeta(ocr, language);

@@ -1,0 +1,369 @@
+{
+  "packetId": "salutation-gold-seed-2026-08-24",
+  "packetType": "seed-annotation-packet",
+  "status": "seed-not-evaluation-corpus",
+  "annotationVocabulary": {
+    "rasterFidelity": [
+      "present-in-raster",
+      "destroyed-by-font-substitution",
+      "unknown"
+    ],
+    "visualForm": [
+      "expanded-text",
+      "compact-glyph",
+      "substituted-letterform",
+      "ordinary-text"
+    ],
+    "targetPresence": [
+      "present",
+      "absent",
+      "unknown"
+    ]
+  },
+  "splitPolicy": {
+    "keys": [
+      "bookKey",
+      "editionKey"
+    ],
+    "splitByEdition": true,
+    "notes": "Do not put crops from the same book/edition in different evaluation splits. This packet is too small to define train/test metrics."
+  },
+  "renderProvenance": {
+    "dpi": 300,
+    "renderer": "pdftocairo 26.07.0",
+    "rendererFlags": "-f PAGE -l PAGE -r DPI -png -singlefile SOURCE OUTPUT_PREFIX",
+    "cropCoordinateConvention": "top-left-origin PDF points; pixel box round(point * DPI / 72)",
+    "manifest": "../surya-dpi-salutation-2026-08-24/render-manifest.json"
+  },
+  "entries": [
+    {
+      "id": "ruhayli-haqq-p35-sws",
+      "role": "positive-anchor",
+      "bookKey": "ruhayli-haqq",
+      "editionKey": "ruhayli-haqq",
+      "splitKey": "ruhayli-haqq",
+      "page": 35,
+      "targetPresence": "present",
+      "semanticClass": "sallallahu-alayhi-wasallam",
+      "visualForm": "expanded-text",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-provisional",
+      "includeInPixelRecall": true,
+      "includeInHardNegativeSet": false,
+      "sourcePdf": {
+        "path": "external-corpus/ruhayli/haqq.pdf",
+        "sha256": "bd019a550e0baedaace1d7c01a0f37c12dee253ff6e9b6575a594662b546621f",
+        "page": 35
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ruhayli-haqq-p35-dpi300.png",
+        "dimensions": [
+          2480,
+          3509
+        ],
+        "sha256": "14714a4aa3f36312bfc4540f9317f1e1500bc4a325abf918953aec2bd09821ce",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "../surya-dpi-salutation-2026-08-24/crops/ruhayli-haqq-p35-crop-dpi300.png",
+        "dimensions": [
+          667,
+          250
+        ],
+        "sha256": "231d8d3720d8ec556718183a8021fd066c3ae616f6c1ddbc6e47bc89f33b28a9",
+        "dpi": 300,
+        "method": "manifest-pdf-point-crop",
+        "cropBoxPx": [
+          1583,
+          594,
+          2250,
+          844
+        ]
+      },
+      "notes": "Visually checked expanded Arabic honorific phrase. The phrase is present in the 300-DPI bytes; this is a provisional visual anchor, not a complete gold count."
+    },
+    {
+      "id": "ibrahim-bayan-p35-sws",
+      "role": "positive-anchor",
+      "bookKey": "ibrahim-bayan",
+      "editionKey": "ibrahim-bayan",
+      "splitKey": "ibrahim-bayan",
+      "page": 35,
+      "targetPresence": "present",
+      "semanticClass": "sallallahu-alayhi-wasallam",
+      "visualForm": "compact-glyph",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-provisional",
+      "includeInPixelRecall": true,
+      "includeInHardNegativeSet": false,
+      "sourcePdf": {
+        "path": "external-corpus/ibrahim/bayan.pdf",
+        "sha256": "932907cffea1fdfa665270c8e4e3d87368b42e048bbffea54d57f0e702b7331c",
+        "page": 35
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ibrahim-bayan-p35-dpi300.png",
+        "dimensions": [
+          3653,
+          5167
+        ],
+        "sha256": "b553e3b6985daf3c9bbb647d79859865e4a37be813efa1c3832bcf293dd25738",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "../surya-dpi-salutation-2026-08-24/crops/ibrahim-bayan-p35-crop-dpi300.png",
+        "dimensions": [
+          2917,
+          334
+        ],
+        "sha256": "4c68facb22ecc3822e75c578ec127b7c4a520d7bfc18229ec6bb3dd075c082db",
+        "dpi": 300,
+        "method": "manifest-pdf-point-crop",
+        "cropBoxPx": [
+          0,
+          1854,
+          2917,
+          2188
+        ]
+      },
+      "notes": "Visually checked compact printed salutation glyph. Type 3/no-ToUnicode source evidence is preserved separately; the semantic mapping remains a human-reviewed anchor, not automatic OCR truth."
+    },
+    {
+      "id": "ibrahim-takfer-p349-sws",
+      "role": "positive-anchor",
+      "bookKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "editionKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "splitKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "page": 349,
+      "targetPresence": "present",
+      "semanticClass": "sallallahu-alayhi-wasallam",
+      "visualForm": "compact-glyph",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-provisional",
+      "includeInPixelRecall": true,
+      "includeInHardNegativeSet": false,
+      "sourcePdf": {
+        "path": "external-corpus/ibrahim/al-takfer wa dawabetuh.pdf",
+        "sha256": "ef70a69ef6c9382d8b89bd568fc3e7437f9acd0ca32007d5e7a5425197c6d41d",
+        "page": 349
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ibrahim-takfer-p349-dpi300.png",
+        "dimensions": [
+          2481,
+          3508
+        ],
+        "sha256": "8e45585b949e25127ed92fd15f29b5e3e562fad113d9087f453b847954bb44a3",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "../surya-dpi-salutation-2026-08-24/crops/ibrahim-takfer-p349-crop-dpi300.png",
+        "dimensions": [
+          1646,
+          209
+        ],
+        "sha256": "97496986a95507033a6e40c9b80488226747cda2a607cc2ec088ad9cf223386e",
+        "dpi": 300,
+        "method": "manifest-pdf-point-crop",
+        "cropBoxPx": [
+          458,
+          2083,
+          2104,
+          2292
+        ]
+      },
+      "notes": "Visually checked compact printed salutation glyph in the review-packet page. Keep this edition separate from bayan in all splits."
+    },
+    {
+      "id": "bazmul-tafsir-p10-unresolved",
+      "role": "unresolved-hard-negative",
+      "bookKey": "bazmul-tafsir-bil-mathur",
+      "editionKey": "bazmul-tafsir-bil-mathur",
+      "splitKey": "bazmul-tafsir-bil-mathur",
+      "page": 10,
+      "targetPresence": "unknown",
+      "semanticClass": "unknown",
+      "visualForm": "substituted-letterform",
+      "rasterFidelity": "destroyed-by-font-substitution",
+      "humanAnnotationStatus": "human-reviewed-unresolved",
+      "includeInPixelRecall": false,
+      "includeInHardNegativeSet": true,
+      "sourcePdf": {
+        "path": "external-corpus/bazmul/muhammad_bazmul-al-tafsir_bil_mathur.pdf",
+        "sha256": "074d27d6713368ee3dbd2b1a4b19371a3f31ce3300268b071378dd5146ca759a",
+        "page": 10
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/bazmul-tafsir-p10-dpi300.png",
+        "dimensions": [
+          2480,
+          3509
+        ],
+        "sha256": "01bfab6f5006ec60256b4d35887396b934306704eee3009e677b1748dc9033f8",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "../surya-dpi-salutation-2026-08-24/crops/bazmul-tafsir-p10-crop-dpi300.png",
+        "dimensions": [
+          1083,
+          250
+        ],
+        "sha256": "6c7a0b5d5ed4b801939dd037d785cdc04c72f263a73553d4ecca646ab8c01b99",
+        "dpi": 300,
+        "method": "manifest-pdf-point-crop",
+        "cropBoxPx": [
+          1188,
+          1125,
+          2271,
+          1375
+        ]
+      },
+      "notes": "Exclude from pixel recall. The unembedded AGAArabesque symbol-font code y is rendered through a fallback/substituted letterform. Semantic class stays unknown pending a legally obtained AGAArabesque specimen; no OCR artifact is accepted as a target label."
+    },
+    {
+      "id": "ruhayli-haqq-p35-negative-4",
+      "role": "hard-negative",
+      "bookKey": "ruhayli-haqq",
+      "editionKey": "ruhayli-haqq",
+      "splitKey": "ruhayli-haqq",
+      "page": 35,
+      "targetPresence": "absent",
+      "semanticClass": "none",
+      "visualForm": "ordinary-text",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-hard-negative",
+      "includeInPixelRecall": false,
+      "includeInHardNegativeSet": true,
+      "sourcePdf": {
+        "path": "external-corpus/ruhayli/haqq.pdf",
+        "sha256": "bd019a550e0baedaace1d7c01a0f37c12dee253ff6e9b6575a594662b546621f",
+        "page": 35
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ruhayli-haqq-p35-dpi300.png",
+        "dimensions": [
+          2480,
+          3509
+        ],
+        "sha256": "14714a4aa3f36312bfc4540f9317f1e1500bc4a325abf918953aec2bd09821ce",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "negatives/ruhayli-negative-4.png",
+        "dimensions": [
+          1000,
+          240
+        ],
+        "sha256": "366d9dde8d4904485276f83e6235d7d6447eafc933566bdba6cba90f3711e544",
+        "dpi": 300,
+        "method": "sips -c 240 1000 --cropOffset 1300 1000",
+        "cropBoxPx": [
+          1000,
+          1300,
+          2000,
+          1540
+        ]
+      },
+      "notes": "Visually checked symbol-free ordinary Arabic text. Negative only; do not count as a positive salutation instance."
+    },
+    {
+      "id": "ibrahim-bayan-p35-negative",
+      "role": "hard-negative",
+      "bookKey": "ibrahim-bayan",
+      "editionKey": "ibrahim-bayan",
+      "splitKey": "ibrahim-bayan",
+      "page": 35,
+      "targetPresence": "absent",
+      "semanticClass": "none",
+      "visualForm": "ordinary-text",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-hard-negative",
+      "includeInPixelRecall": false,
+      "includeInHardNegativeSet": true,
+      "sourcePdf": {
+        "path": "external-corpus/ibrahim/bayan.pdf",
+        "sha256": "932907cffea1fdfa665270c8e4e3d87368b42e048bbffea54d57f0e702b7331c",
+        "page": 35
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ibrahim-bayan-p35-dpi300.png",
+        "dimensions": [
+          3653,
+          5167
+        ],
+        "sha256": "b553e3b6985daf3c9bbb647d79859865e4a37be813efa1c3832bcf293dd25738",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "negatives/ibrahim-negative.png",
+        "dimensions": [
+          1400,
+          280
+        ],
+        "sha256": "2d0d76f9cc6cbbb6ba45c18ac1d9588eb8403eae3d2d10f6dd44b3d1e78f5282",
+        "dpi": 300,
+        "method": "sips -c 280 1400 --cropOffset 3000 1800",
+        "cropBoxPx": [
+          1800,
+          3000,
+          3200,
+          3280
+        ]
+      },
+      "notes": "Visually checked symbol-free ordinary Arabic text from the same edition. Negative only; no compact salutation is present in this crop."
+    },
+    {
+      "id": "ibrahim-takfer-p349-negative",
+      "role": "hard-negative",
+      "bookKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "editionKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "splitKey": "ibrahim-al-takfer-wa-dawabetuh",
+      "page": 349,
+      "targetPresence": "absent",
+      "semanticClass": "none",
+      "visualForm": "ordinary-text",
+      "rasterFidelity": "present-in-raster",
+      "humanAnnotationStatus": "human-reviewed-hard-negative",
+      "includeInPixelRecall": false,
+      "includeInHardNegativeSet": true,
+      "sourcePdf": {
+        "path": "external-corpus/ibrahim/al-takfer wa dawabetuh.pdf",
+        "sha256": "ef70a69ef6c9382d8b89bd568fc3e7437f9acd0ca32007d5e7a5425197c6d41d",
+        "page": 349
+      },
+      "fullRaster": {
+        "path": "../surya-dpi-salutation-2026-08-24/full/ibrahim-takfer-p349-dpi300.png",
+        "dimensions": [
+          2481,
+          3508
+        ],
+        "sha256": "8e45585b949e25127ed92fd15f29b5e3e562fad113d9087f453b847954bb44a3",
+        "dpi": 300,
+        "renderer": "pdftocairo 26.07.0"
+      },
+      "crop": {
+        "path": "negatives/takfer-negative.png",
+        "dimensions": [
+          1200,
+          240
+        ],
+        "sha256": "01d2ce69b6ad2014e788b7375ea2a1bead4124093ab4e1ea5c92bbb62b28f483",
+        "dpi": 300,
+        "method": "sips -c 240 1200 --cropOffset 1500 1200",
+        "cropBoxPx": [
+          1200,
+          1500,
+          2400,
+          1740
+        ]
+      },
+      "notes": "Visually checked symbol-free ordinary Arabic text. This remains a hard negative and is excluded from the positive recall denominator."
+    }
+  ]
+}

@@ -6,12 +6,29 @@
 /** Axis-aligned bounding box in (x1, y1, x2, y2) format */
 export type SuryaBBox = [number, number, number, number];
 
+export type SuryaPolygon = Array<[number, number]>;
+
+export type SuryaTextFragment = {
+    readonly bbox: SuryaBBox;
+    readonly confidence?: number;
+    readonly polygon?: SuryaPolygon;
+    readonly text: string;
+};
+
 /** A single text line detected by Surya */
 export type SuryaTextLine = {
     /** the axis-aligned rectangle for the text line in (x1, y1, x2, y2) format */
     readonly bbox: SuryaBBox;
+    /** optional character-level evidence from the raw Surya result */
+    readonly chars?: SuryaTextFragment[];
+    /** line confidence from the raw Surya result */
+    readonly confidence?: number;
+    /** quadrilateral line geometry from the raw Surya result */
+    readonly polygon?: SuryaPolygon;
     /** the text in the line */
     readonly text: string;
+    /** optional word-level evidence from the raw Surya result */
+    readonly words?: SuryaTextFragment[];
 };
 
 /** OCR result for a single page */

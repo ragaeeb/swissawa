@@ -4,6 +4,7 @@ import * as fsp from 'node:fs/promises';
 import path from 'node:path';
 import { jobDir, jobImagesDir, jobPdfPath } from '@/server/jobs/jobPaths';
 import { JobStore } from '@/server/jobs/jobStore';
+import { createRasterEnvelope } from '@/server/ocr/canonicalRaster';
 import { ocrBus } from '@/server/ocr/ocrEventBus';
 import { jobOcrJsonPath, jobOcrMetaPath, jobOcrPagesDir } from '@/server/ocr/ocrPaths';
 
@@ -51,8 +52,20 @@ mock.module('@/server/ocr/spawn', () => {
                             pages: [
                                 {
                                     height: 1000,
-                                    observations: [{ bbox: { height: 4, width: 3, x: 1, y: 2 }, text: 'السلام عليكم' }],
+                                    observations: [
+                                        {
+                                            bbox: { height: 4, width: 3, x: 1, y: 2 },
+                                            bboxPrecision: 'word',
+                                            candidates: [{ confidence: 0.91, rank: 1, text: 'السلام عليكم' }],
+                                            confidence: 0.91,
+                                            id: 'observation-0001',
+                                            rawText: 'السلام عليكم',
+                                            sourceRange: { length: 12, location: 0, unit: 'utf16' },
+                                            text: 'السلام عليكم',
+                                        },
+                                    ],
                                     page: 1,
+                                    raster: { height: 1000, sha256: 'a'.repeat(64), width: 800 },
                                     width: 800,
                                 },
                             ],
@@ -133,6 +146,7 @@ describe('runMacOcr', () => {
         expect(call?.cmd).toBe(isMac ? 'script' : 'macOCR');
         expect(call?.args).toContain('--language');
         expect(call?.args).toContain('ar-SA');
+        expect(call?.args).toContain('--diagnostics');
         if (isMac) {
             expect(call?.args).toContain('macOCR');
         }
@@ -144,8 +158,16 @@ describe('runMacOcr', () => {
         expect(meta.totalPages).toBe(1);
         expect(meta.language).toBe('ar-SA');
 
-        const p1 = await fsp.readFile(path.join(jobOcrPagesDir(jobId), '1.json'), 'utf8');
-        expect(p1).toContain('السلام عليكم');
+        const p1 = JSON.parse(await fsp.readFile(path.join(jobOcrPagesDir(jobId), '1.json'), 'utf8'));
+        expect(p1.observations[0]).toMatchObject({
+            bboxPrecision: 'word',
+            candidates: [{ confidence: 0.91, rank: 1, text: 'السلام عليكم' }],
+            id: 'macocr:page-1:observation-0001',
+            rawText: 'السلام عليكم',
+            sourceRange: { length: 12, location: 0, unit: 'utf16' },
+        });
+        expect(p1.raster.sha256).toBe('a'.repeat(64));
+        expect(p1.suggestedEdits).toEqual([]);
 
         expect(store.get(jobId)?.ocr?.status).toBe('complete');
     });
@@ -211,5 +233,32 @@ describe('runMacOcr', () => {
         await runMacOcr({ jobId, store });
         await runMacOcr({ jobId, store });
         expect(spawnCalls.length).toBe(2);
+    });
+
+    it('uses a caller-provided canonical raster and records its provenance', async () => {
+        const bytes = Uint8Array.from(
+            Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAAxJREFUeJxjYGBgAAAABAAB9hc4VQAAAABJRU5ErkJggg==',
+                'base64',
+            ),
+        );
+        const envelope = createRasterEnvelope({
+            bytes,
+            crop: { height: 1, unit: 'normalized', width: 1, x: 0, y: 0 },
+            source: { page: 1, pdfSha256: 'pdf-source' },
+        });
+
+        await runMacOcr({ jobId, rasterInput: { bytes, envelope }, store });
+
+        const call = spawnCalls[0];
+        expect(call?.args.at(-1)).toBe(path.join(jobDir(jobId), 'ocr', 'input.png'));
+        const page = JSON.parse(await fsp.readFile(path.join(jobOcrPagesDir(jobId), '1.json'), 'utf8'));
+        expect(page.raster).toMatchObject({
+            consumedBy: 'macOCR',
+            consumedRasterSha256: envelope.sha256,
+            renderer: { version: '26.07.0' },
+            sha256: envelope.sha256,
+            source: { pdfSha256: 'pdf-source' },
+        });
     });
 });

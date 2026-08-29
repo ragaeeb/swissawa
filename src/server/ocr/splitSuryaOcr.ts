@@ -3,9 +3,14 @@ import path from 'node:path';
 import type { BoundingBox, Observation, ObservationPage } from '@/lib/macOcr';
 import type { SuryaOcrOutput, SuryaPageOcrResult, SuryaRawOutput, SuryaTextLine } from '@/lib/suryaOcr';
 
-export type SuryaOcrMeta = { totalPages: number; dpi: { x: number; y: number }; createdAtIso: string };
+export type SuryaOcrMeta = {
+    totalPages: number;
+    dpi: { x: number; y: number };
+    createdAtIso: string;
+    raster?: ObservationPage['raster'];
+};
 
-export type SplitSuryaOcrOptions = { outDir: string; pages: SuryaPageOcrResult[] };
+export type SplitSuryaOcrOptions = { outDir: string; pages: SuryaPageOcrResult[]; raster?: ObservationPage['raster'] };
 
 /**
  * Filter raw surya results.json output by stripping character-level data.
@@ -37,18 +42,31 @@ function suryaBboxToBoundingBox(bbox: [number, number, number, number]): Boundin
  * Convert SuryaPageOcrResult to ObservationPage format for unified page rendering.
  * Note: Surya pages are already 1-indexed based on results.json output.
  */
-export function convertSuryaToObservationPage(suryaPage: SuryaPageOcrResult): ObservationPage {
+export function convertSuryaToObservationPage(
+    suryaPage: SuryaPageOcrResult,
+    raster?: ObservationPage['raster'],
+): ObservationPage {
     const [, , width, height] = suryaPage.image_bbox;
 
-    const observations: Observation[] = suryaPage.text_lines.map((line: SuryaTextLine) => ({
+    const observations: Observation[] = suryaPage.text_lines.map((line: SuryaTextLine, index) => ({
         bbox: suryaBboxToBoundingBox(line.bbox),
+        ...(line.chars ? { chars: line.chars } : {}),
+        ...(line.confidence !== undefined ? { confidence: line.confidence } : {}),
+        id: `surya:page-${suryaPage.page}:line-${String(index + 1).padStart(4, '0')}`,
+        ...(line.polygon ? { polygon: line.polygon } : {}),
+        rawText: line.text,
+        sourceRange: { length: line.text.length, location: 0, unit: 'utf16' },
         text: line.text,
+        ...(line.words ? { words: line.words } : {}),
     }));
 
     return {
         height,
         observations,
         page: suryaPage.page, // Surya is already 1-indexed
+        ...(raster ? { raster } : {}),
+        salutationProposals: [],
+        suggestedEdits: [],
         width,
     };
 }
@@ -57,8 +75,8 @@ export function convertSuryaToObservationPage(suryaPage: SuryaPageOcrResult): Ob
  * Build metadata for surya OCR results.
  * Surya doesn't provide DPI info, so we default to 72.
  */
-export function buildSuryaMeta(pages: SuryaPageOcrResult[]): SuryaOcrMeta {
-    return { createdAtIso: new Date().toISOString(), dpi: { x: 72, y: 72 }, totalPages: pages.length };
+export function buildSuryaMeta(pages: SuryaPageOcrResult[], raster?: ObservationPage['raster']): SuryaOcrMeta {
+    return { createdAtIso: new Date().toISOString(), dpi: { x: 72, y: 72 }, raster, totalPages: pages.length };
 }
 
 /**
@@ -81,17 +99,17 @@ async function writePageJson(pagesDir: string, page: ObservationPage): Promise<v
  * Split surya OCR output into per-page JSON files matching macOCR format.
  * Creates pages/ directory with 1.json, 2.json, etc.
  */
-export async function splitSuryaOcrToPages({ outDir, pages }: SplitSuryaOcrOptions): Promise<SuryaOcrMeta> {
+export async function splitSuryaOcrToPages({ outDir, pages, raster }: SplitSuryaOcrOptions): Promise<SuryaOcrMeta> {
     const pagesDir = path.join(outDir, 'pages');
     await fsp.mkdir(pagesDir, { recursive: true });
 
     // Write per-page JSON (converting from surya format to macOCR format)
     for (const suryaPage of pages) {
-        const observationPage = convertSuryaToObservationPage(suryaPage);
+        const observationPage = convertSuryaToObservationPage(suryaPage, raster);
         await writePageJson(pagesDir, observationPage);
     }
 
-    const meta = buildSuryaMeta(pages);
+    const meta = buildSuryaMeta(pages, raster);
     await writeSuryaMeta(outDir, meta);
     return meta;
 }

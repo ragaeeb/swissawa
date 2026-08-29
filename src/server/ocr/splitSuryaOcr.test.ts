@@ -104,12 +104,63 @@ describe('splitSuryaOcr', () => {
             expect(result).toEqual({
                 height: 1200,
                 observations: [
-                    { bbox: { height: 30, width: 100, x: 10, y: 20 }, text: 'السلام عليكم' },
-                    { bbox: { height: 30, width: 190, x: 10, y: 60 }, text: 'وعليكم السلام' },
+                    {
+                        bbox: { height: 30, width: 100, x: 10, y: 20 },
+                        id: 'surya:page-1:line-0001',
+                        rawText: 'السلام عليكم',
+                        sourceRange: { length: 12, location: 0, unit: 'utf16' },
+                        text: 'السلام عليكم',
+                    },
+                    {
+                        bbox: { height: 30, width: 190, x: 10, y: 60 },
+                        id: 'surya:page-1:line-0002',
+                        rawText: 'وعليكم السلام',
+                        sourceRange: { length: 13, location: 0, unit: 'utf16' },
+                        text: 'وعليكم السلام',
+                    },
                 ],
                 page: 1, // Same as input - surya is already 1-indexed
+                salutationProposals: [],
+                suggestedEdits: [],
                 width: 800,
             });
+        });
+
+        it('retains Surya localization evidence in the paged observation contract', () => {
+            const chars = [{ bbox: [10, 20, 15, 40] as [number, number, number, number], text: 'ﷺ' }];
+            const polygon = [
+                [10, 20],
+                [30, 20],
+                [30, 40],
+                [10, 40],
+            ] as Array<[number, number]>;
+            const words = [{ bbox: [10, 20, 30, 40] as [number, number, number, number], text: 'ﷺ' }];
+            const result = convertSuryaToObservationPage({
+                image_bbox: [0, 0, 100, 100],
+                page: 2,
+                text_lines: [{ bbox: [10, 20, 30, 40], chars, confidence: 0.93, polygon, text: 'ﷺ', words }],
+            });
+
+            expect(result.observations[0]).toMatchObject({
+                chars,
+                confidence: 0.93,
+                id: 'surya:page-2:line-0001',
+                polygon,
+                rawText: 'ﷺ',
+                sourceRange: { length: 1, location: 0, unit: 'utf16' },
+                words,
+            });
+        });
+
+        it('measures supplementary-plane honorific ranges in UTF-16 code units', () => {
+            const honorific = String.fromCodePoint(0x10ed1);
+            const result = convertSuryaToObservationPage({
+                image_bbox: [0, 0, 100, 100],
+                page: 3,
+                text_lines: [{ bbox: [10, 20, 30, 40], text: honorific }],
+            });
+
+            expect(result.observations[0]?.sourceRange).toEqual({ length: 2, location: 0, unit: 'utf16' });
         });
 
         it('should handle empty text_lines', () => {
@@ -121,6 +172,8 @@ describe('splitSuryaOcr', () => {
                 height: 700,
                 observations: [],
                 page: 5, // Same as input
+                salutationProposals: [],
+                suggestedEdits: [],
                 width: 500,
             });
         });

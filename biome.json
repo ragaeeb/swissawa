@@ -18,7 +18,15 @@
     },
     "files": {
         "ignoreUnknown": true,
-        "includes": ["**", "!node_modules", "!.next", "!dist", "!build"]
+        "includes": [
+            "**",
+            "!node_modules",
+            "!.next",
+            "!dist",
+            "!build",
+            "!docs/research/artifacts",
+            "!docs/research/fixtures"
+        ]
     },
     "formatter": {
         "enabled": true,

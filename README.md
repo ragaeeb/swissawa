@@ -25,8 +25,8 @@
 - **Bun**: `>=1.3.9`
 - **Node.js**: `>=24`
 - **Poppler** (PDF rendering): `pdfinfo`, `pdftocairo`
-- **macOCR** (Arabic OCR): macOS Vision-based CLI tool
-- **Surya OCR** (optional): ML-based OCR with GPU acceleration
+- **macOCR** (Arabic OCR): macOS Vision-based CLI with `--diagnostics` support
+- **Surya OCR v1** (optional): pinned legacy ML adapter with GPU acceleration
 
 On macOS:
 
@@ -36,12 +36,14 @@ brew install poppler
 
 ### Optional: Surya OCR Setup
 
-For ML-based OCR with GPU (MPS) acceleration:
+The current adapter consumes Surya v1's `text_lines` output. Surya 2 uses a
+different `blocks` schema and model-server runtime, so do not install an
+unbounded latest version into this environment:
 
 ```bash
 python3 -m venv ~/surya-env
 source ~/surya-env/bin/activate
-pip install surya-ocr
+pip install "surya-ocr==0.17.1"
 ```
 
 ### Run dev server
@@ -67,6 +69,8 @@ bun test
 - **Engine Selection UI**: Dropdown to select "Both Engines", "macOCR Only", or "Surya Only".
 - **GPU Acceleration**: Surya uses MPS (Metal) on M-series Macs with automatic CPU fallback.
 - **Side-by-Side Comparison**: When running both engines, results appear in adjacent columns for comparison.
+- **Auditable OCR Evidence**: Paged output retains stable source IDs, unchanged raw text, UTF-16 ranges, Vision candidates, and Surya localization evidence. Suggested edits are stored separately and never mutate OCR text.
+- **Canonical Review Raster**: Page-level review workflows can render and cache one pinned 200-DPI sRGB PNG, attach PDF font-substitution provenance, and pass the exact same bytes to macOCR and Surya. The existing whole-document API still uses its legacy PDF path until page-number semantics are migrated.
 - **Real-time Feedback**: SSE-powered progress bars showing actual percentages for each engine.
 - **Deduplication**: SHA-256 hashing avoids re-processing identical files.
 - **Arabic-First UI**: Optimized typography using `IBM Plex Sans Arabic` and RTL-aware layout.
