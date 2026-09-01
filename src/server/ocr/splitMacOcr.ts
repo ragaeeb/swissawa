@@ -2,7 +2,13 @@ import * as fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { MacOCR, ObservationPage } from '@/lib/macOcr';
 
-export type OcrMeta = { totalPages: number; dpi: { x: number; y: number }; createdAtIso: string; language?: string };
+export type OcrMeta = {
+    totalPages: number;
+    dpi: { x: number; y: number };
+    createdAtIso: string;
+    language?: string;
+    raster?: ObservationPage['raster'];
+};
 
 export type SplitMacOcrOptions = { ocr: MacOCR; outDir: string; language?: string };
 
@@ -14,7 +20,13 @@ export function pageFileName(pageNumber: number): string {
 }
 
 export function buildOcrMeta(ocr: MacOCR, language?: string): OcrMeta {
-    return { createdAtIso: new Date().toISOString(), dpi: ocr.dpi, language, totalPages: ocr.pages.length };
+    return {
+        createdAtIso: new Date().toISOString(),
+        dpi: ocr.dpi,
+        language,
+        raster: ocr.pages[0]?.raster,
+        totalPages: ocr.pages.length,
+    };
 }
 
 export async function writeOcrMeta(outDir: string, meta: OcrMeta): Promise<void> {
@@ -28,7 +40,15 @@ export async function splitMacOcrToPages({ ocr, outDir, language }: SplitMacOcrO
 
     // Write per-page JSON (1-indexed).
     for (const p of ocr.pages) {
-        await writePageJson(pagesDir, p);
+        await writePageJson(pagesDir, {
+            ...p,
+            observations: p.observations.map((observation) => ({
+                ...observation,
+                ...(observation.id ? { id: `macocr:page-${p.page}:${observation.id}` } : {}),
+            })),
+            salutationProposals: p.salutationProposals ?? [],
+            suggestedEdits: p.suggestedEdits ?? [],
+        });
     }
 
     const meta = buildOcrMeta(ocr, language);

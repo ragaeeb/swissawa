@@ -1,0 +1,36 @@
+{
+  "notes": [
+    {
+      "stage": "v2_full_initial_loader",
+      "result_path": "results-v2/full/ruhayli-haqq-p35-dpi144/",
+      "log": "results-v2/full/ruhayli-haqq-p35-dpi144/attempt1-openssl-shutdown.log",
+      "rc": 1,
+      "wall_seconds": 112.63,
+      "max_rss_bytes": 298778624,
+      "blocker": "temporary extracted llama-server completed inference but shutdown failed with dyld Symbol not found _ASN1_INTEGER_cmp in copied OpenSSL; copied dylib install names were patched and ad-hoc signed; retry succeeded"
+    },
+    {
+      "stage": "v2_crop_default_timeout",
+      "input": "crops/ibrahim-takfer-p349-crop-dpi200.png",
+      "result_path": "results-v2/crop/ibrahim-takfer-p349-dpi200/",
+      "log": "results-v2/crop/ibrahim-takfer-p349-dpi200/command.log",
+      "rc": "terminated-15",
+      "wall_seconds_at_termination": 301,
+      "python_rss_sample_bytes": 484336640,
+      "llama_server_rss_sample_bytes": 3488546816,
+      "blocker": "default SURYA_MAX_TOKENS_FULL_PAGE=12288 produced no JSON after about five minutes; exact child and server were terminated; bounded SURYA_MAX_TOKENS_FULL_PAGE=2048 run is in results-v2/crop/ibrahim-takfer-p349-dpi200-max2048/"
+    },
+    {
+      "stage": "v2_crop_default_timeout",
+      "input": "crops/ibrahim-bayan-p35-crop-dpi300.png",
+      "result_path": "results-v2/crop/ibrahim-bayan-p35-dpi300/",
+      "log": "results-v2/crop/ibrahim-bayan-p35-dpi300/command.log",
+      "rc": "terminated-15",
+      "wall_seconds_at_termination": 89,
+      "python_rss_sample_bytes": 468464640,
+      "llama_server_rss_sample_bytes": 3572613120,
+      "blocker": "default SURYA_MAX_TOKENS_FULL_PAGE=12288 produced no JSON during the bounded proof; exact child and server were terminated; bounded SURYA_MAX_TOKENS_FULL_PAGE=2048 run is in results-v2/crop/ibrahim-bayan-p35-dpi300-max2048/"
+    }
+  ],
+  "cleanup": "Final ps check after all runs showed no llama-server, surya_ocr, surya_detect, or surya.detection.server process."
+}

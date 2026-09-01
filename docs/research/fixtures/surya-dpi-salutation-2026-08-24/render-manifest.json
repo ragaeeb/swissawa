@@ -1,0 +1,729 @@
+{
+  "renderer": "pdftocairo 26.07.0",
+  "renderer_flags": "-f PAGE -l PAGE -r DPI -png -singlefile SOURCE OUTPUT_PREFIX",
+  "crop_coordinate_convention": "top-left-origin PDF points; pixel box round(point * DPI / 72)",
+  "sources": [
+    {
+      "stem": "ruhayli-haqq-p35",
+      "pdf_path": "external-corpus/ruhayli/haqq.pdf",
+      "page": 35,
+      "page_size_points": [
+        595.0,
+        842.0
+      ],
+      "pdf_bytes": 2448078,
+      "pdf_sha256": "bd019a550e0baedaace1d7c01a0f37c12dee253ff6e9b6575a594662b546621f",
+      "crop_box_pdf_points": [
+        380,
+        142.5,
+        540,
+        202.5
+      ]
+    },
+    {
+      "stem": "ibrahim-bayan-p35",
+      "pdf_path": "external-corpus/ibrahim/bayan.pdf",
+      "page": 35,
+      "page_size_points": [
+        876.5,
+        1240.0
+      ],
+      "pdf_bytes": 11918598,
+      "pdf_sha256": "932907cffea1fdfa665270c8e4e3d87368b42e048bbffea54d57f0e702b7331c",
+      "crop_box_pdf_points": [
+        0,
+        445,
+        700,
+        525
+      ]
+    },
+    {
+      "stem": "ibrahim-takfer-p349",
+      "pdf_path": "external-corpus/ibrahim/al-takfer wa dawabetuh.pdf",
+      "page": 349,
+      "page_size_points": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "pdf_bytes": 9472513,
+      "pdf_sha256": "ef70a69ef6c9382d8b89bd568fc3e7437f9acd0ca32007d5e7a5425197c6d41d",
+      "crop_box_pdf_points": [
+        110,
+        500,
+        505,
+        550
+      ]
+    },
+    {
+      "stem": "bazmul-tafsir-p10",
+      "pdf_path": "external-corpus/bazmul/muhammad_bazmul-al-tafsir_bil_mathur.pdf",
+      "page": 10,
+      "page_size_points": [
+        595.0,
+        842.0
+      ],
+      "pdf_bytes": 1445246,
+      "pdf_sha256": "074d27d6713368ee3dbd2b1a4b19371a3f31ce3300268b071378dd5146ca759a",
+      "crop_box_pdf_points": [
+        285,
+        270,
+        545,
+        330
+      ]
+    }
+  ],
+  "renders": [
+    {
+      "role": "full",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 144,
+      "path": "full/ruhayli-haqq-p35-dpi144.png",
+      "dimensions": [
+        1190,
+        1684
+      ],
+      "bytes": 255078,
+      "sha256": "69c31d60088a72970c93da3975ebe519055c5284ed06f29fa18635606400a782",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 144,
+      "path": "crops/ruhayli-haqq-p35-crop-dpi144.png",
+      "dimensions": [
+        320,
+        120
+      ],
+      "bytes": 7527,
+      "sha256": "e34d02a00f111eb206b779903fabe5b2be3e21e5708e8ee71e83c270b182af0a",
+      "crop_box_px": [
+        760,
+        285,
+        1080,
+        405
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 200,
+      "path": "full/ruhayli-haqq-p35-dpi200.png",
+      "dimensions": [
+        1653,
+        2339
+      ],
+      "bytes": 466322,
+      "sha256": "b3d03a76f3fad4764078185e1fd604866810b1f9d520096a853dc52a92f18b73",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 200,
+      "path": "crops/ruhayli-haqq-p35-crop-dpi200.png",
+      "dimensions": [
+        444,
+        166
+      ],
+      "bytes": 13344,
+      "sha256": "21ccbc0adba117873a8ef6e5af54dd7248e31a6e3ab7073df3a376af2dd13a8f",
+      "crop_box_px": [
+        1056,
+        396,
+        1500,
+        562
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 300,
+      "path": "full/ruhayli-haqq-p35-dpi300.png",
+      "dimensions": [
+        2480,
+        3509
+      ],
+      "bytes": 843230,
+      "sha256": "14714a4aa3f36312bfc4540f9317f1e1500bc4a325abf918953aec2bd09821ce",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 300,
+      "path": "crops/ruhayli-haqq-p35-crop-dpi300.png",
+      "dimensions": [
+        667,
+        250
+      ],
+      "bytes": 24350,
+      "sha256": "231d8d3720d8ec556718183a8021fd066c3ae616f6c1ddbc6e47bc89f33b28a9",
+      "crop_box_px": [
+        1583,
+        594,
+        2250,
+        844
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 450,
+      "path": "full/ruhayli-haqq-p35-dpi450.png",
+      "dimensions": [
+        3719,
+        5263
+      ],
+      "bytes": 1390816,
+      "sha256": "0ef955c4c598f1c5ab70e0e4f79f6dd7b64f2efba4df832f1872f67c0d00c7c7",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 450,
+      "path": "crops/ruhayli-haqq-p35-crop-dpi450.png",
+      "dimensions": [
+        1000,
+        375
+      ],
+      "bytes": 40873,
+      "sha256": "cb8181d772ef78aafb2049cfc885c4ae4ccca225ba44937b1b522ba0a228a1cf",
+      "crop_box_px": [
+        2375,
+        891,
+        3375,
+        1266
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 600,
+      "path": "full/ruhayli-haqq-p35-dpi600.png",
+      "dimensions": [
+        4959,
+        7017
+      ],
+      "bytes": 1970151,
+      "sha256": "f8bec31624ae229ec0485025c312290ba85cc92434f8e03cd684b5fa14a67ca3",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ruhayli-haqq-p35",
+      "dpi": 600,
+      "path": "crops/ruhayli-haqq-p35-crop-dpi600.png",
+      "dimensions": [
+        1333,
+        500
+      ],
+      "bytes": 57196,
+      "sha256": "b43cf5070d7d2820f35b37b09c714eee74d399b544f5698cd9a1204e85950f38",
+      "crop_box_px": [
+        3167,
+        1188,
+        4500,
+        1688
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 144,
+      "path": "full/ibrahim-bayan-p35-dpi144.png",
+      "dimensions": [
+        1753,
+        2480
+      ],
+      "bytes": 1207346,
+      "sha256": "daec101f572eb859bedc3b5cebef9097825989f926e580ddc362d174f55d06d4",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 144,
+      "path": "crops/ibrahim-bayan-p35-crop-dpi144.png",
+      "dimensions": [
+        1400,
+        160
+      ],
+      "bytes": 77805,
+      "sha256": "b646b3fc69d71ac09ec384bc50f3f538ec2a48a841f1055da2e9928d3dc2ab3f",
+      "crop_box_px": [
+        0,
+        890,
+        1400,
+        1050
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 200,
+      "path": "full/ibrahim-bayan-p35-dpi200.png",
+      "dimensions": [
+        2435,
+        3445
+      ],
+      "bytes": 2050303,
+      "sha256": "8da3fb566583ea6f175edec8ee83f1f2dd0b6a5f0bc8cef45b86eb1f1530315f",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 200,
+      "path": "crops/ibrahim-bayan-p35-crop-dpi200.png",
+      "dimensions": [
+        1944,
+        222
+      ],
+      "bytes": 132938,
+      "sha256": "9b23e6cf8668c1a634528efbf0481c11e754943634cffeaafc9bdabbfa08cd59",
+      "crop_box_px": [
+        0,
+        1236,
+        1944,
+        1458
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 300,
+      "path": "full/ibrahim-bayan-p35-dpi300.png",
+      "dimensions": [
+        3653,
+        5167
+      ],
+      "bytes": 646706,
+      "sha256": "b553e3b6985daf3c9bbb647d79859865e4a37be813efa1c3832bcf293dd25738",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 300,
+      "path": "crops/ibrahim-bayan-p35-crop-dpi300.png",
+      "dimensions": [
+        2917,
+        334
+      ],
+      "bytes": 38275,
+      "sha256": "4c68facb22ecc3822e75c578ec127b7c4a520d7bfc18229ec6bb3dd075c082db",
+      "crop_box_px": [
+        0,
+        1854,
+        2917,
+        2188
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 450,
+      "path": "full/ibrahim-bayan-p35-dpi450.png",
+      "dimensions": [
+        5479,
+        7750
+      ],
+      "bytes": 753910,
+      "sha256": "eb47f7d35cfb2524192368ec610edb936ac8785616c2b645414cd29ab456cb19",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 450,
+      "path": "crops/ibrahim-bayan-p35-crop-dpi450.png",
+      "dimensions": [
+        4375,
+        500
+      ],
+      "bytes": 46577,
+      "sha256": "6ec0c888b91e2b192ea91cfc8062fd664ad5eb9d5288ee453525c2e2d454da0e",
+      "crop_box_px": [
+        0,
+        2781,
+        4375,
+        3281
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 600,
+      "path": "full/ibrahim-bayan-p35-dpi600.png",
+      "dimensions": [
+        7305,
+        10334
+      ],
+      "bytes": 887039,
+      "sha256": "3378cc902a2535c4e41ae8e6de7eef223bc521aa50391c00dc1b1da800875c8e",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-bayan-p35",
+      "dpi": 600,
+      "path": "crops/ibrahim-bayan-p35-crop-dpi600.png",
+      "dimensions": [
+        5833,
+        667
+      ],
+      "bytes": 54108,
+      "sha256": "5004d1bee4cdc830635f2eb38d6947b3e0d3393d2e0970df0db67428d2d1299d",
+      "crop_box_px": [
+        0,
+        3708,
+        5833,
+        4375
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 144,
+      "path": "full/ibrahim-takfer-p349-dpi144.png",
+      "dimensions": [
+        1191,
+        1684
+      ],
+      "bytes": 161833,
+      "sha256": "5d90aa0b03c96aa7780a21a8c64606617f0e2d6dd1ad803272d9524c2614575f",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 144,
+      "path": "crops/ibrahim-takfer-p349-crop-dpi144.png",
+      "dimensions": [
+        790,
+        100
+      ],
+      "bytes": 15100,
+      "sha256": "b201db9d6149627ab721e92f8bd6a81abf12395e3935c984e4867de402191257",
+      "crop_box_px": [
+        220,
+        1000,
+        1010,
+        1100
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 200,
+      "path": "full/ibrahim-takfer-p349-dpi200.png",
+      "dimensions": [
+        1654,
+        2339
+      ],
+      "bytes": 246621,
+      "sha256": "ad5c6e114ac89b752e0c1c9d1200532cef69dfeb24ee8e6c5f211cc57ef89648",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 200,
+      "path": "crops/ibrahim-takfer-p349-crop-dpi200.png",
+      "dimensions": [
+        1097,
+        139
+      ],
+      "bytes": 21925,
+      "sha256": "7f5250b4e7ea90186bb93488b9c53875c777d3fef7808e86c5438eccefb9834c",
+      "crop_box_px": [
+        306,
+        1389,
+        1403,
+        1528
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 300,
+      "path": "full/ibrahim-takfer-p349-dpi300.png",
+      "dimensions": [
+        2481,
+        3508
+      ],
+      "bytes": 408933,
+      "sha256": "8e45585b949e25127ed92fd15f29b5e3e562fad113d9087f453b847954bb44a3",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 300,
+      "path": "crops/ibrahim-takfer-p349-crop-dpi300.png",
+      "dimensions": [
+        1646,
+        209
+      ],
+      "bytes": 36379,
+      "sha256": "97496986a95507033a6e40c9b80488226747cda2a607cc2ec088ad9cf223386e",
+      "crop_box_px": [
+        458,
+        2083,
+        2104,
+        2292
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 450,
+      "path": "full/ibrahim-takfer-p349-dpi450.png",
+      "dimensions": [
+        3721,
+        5262
+      ],
+      "bytes": 669386,
+      "sha256": "426600c892b5abdb4f3f8674a2558ae672550cc1f94e8630cbeec5899a763b3c",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 450,
+      "path": "crops/ibrahim-takfer-p349-crop-dpi450.png",
+      "dimensions": [
+        2468,
+        313
+      ],
+      "bytes": 61878,
+      "sha256": "ebc853162a8c888753b32e41ec414c40f281fb6c25d11c0e3ad6aef251c41aa7",
+      "crop_box_px": [
+        688,
+        3125,
+        3156,
+        3438
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 600,
+      "path": "full/ibrahim-takfer-p349-dpi600.png",
+      "dimensions": [
+        4961,
+        7016
+      ],
+      "bytes": 938323,
+      "sha256": "6fae86ccff733adaa3a736bb05badf2399c9df2e1c27e23524189766c4c37e99",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "ibrahim-takfer-p349",
+      "dpi": 600,
+      "path": "crops/ibrahim-takfer-p349-crop-dpi600.png",
+      "dimensions": [
+        3291,
+        416
+      ],
+      "bytes": 87928,
+      "sha256": "08cdba7ff0697f8044241495d9afe635512609a2c6ba1bb59ce0aa179b7341e0",
+      "crop_box_px": [
+        917,
+        4167,
+        4208,
+        4583
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 144,
+      "path": "full/bazmul-tafsir-p10-dpi144.png",
+      "dimensions": [
+        1190,
+        1684
+      ],
+      "bytes": 232816,
+      "sha256": "e7186d4fdfc3fedfc2e97e3ea83c976904b944539aa224bdc9e0a5a637bcdec7",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 144,
+      "path": "crops/bazmul-tafsir-p10-crop-dpi144.png",
+      "dimensions": [
+        520,
+        120
+      ],
+      "bytes": 12514,
+      "sha256": "e1560e84f88460b011e9e89c68e5b513dbb8ebc994fe2e7c3e9fedd008163cb0",
+      "crop_box_px": [
+        570,
+        540,
+        1090,
+        660
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 200,
+      "path": "full/bazmul-tafsir-p10-dpi200.png",
+      "dimensions": [
+        1653,
+        2339
+      ],
+      "bytes": 346678,
+      "sha256": "af967fc27cf10e875fc09c50fc59d05e9e322b157f07cfe2da72ef3a536c8682",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 200,
+      "path": "crops/bazmul-tafsir-p10-crop-dpi200.png",
+      "dimensions": [
+        722,
+        167
+      ],
+      "bytes": 17866,
+      "sha256": "b83c6a031cf256f8d2e5413d4766f6438683bc504734c6d0d4227de9ef023ee6",
+      "crop_box_px": [
+        792,
+        750,
+        1514,
+        917
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 300,
+      "path": "full/bazmul-tafsir-p10-dpi300.png",
+      "dimensions": [
+        2480,
+        3509
+      ],
+      "bytes": 506726,
+      "sha256": "01bfab6f5006ec60256b4d35887396b934306704eee3009e677b1748dc9033f8",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 300,
+      "path": "crops/bazmul-tafsir-p10-crop-dpi300.png",
+      "dimensions": [
+        1083,
+        250
+      ],
+      "bytes": 28833,
+      "sha256": "6c7a0b5d5ed4b801939dd037d785cdc04c72f263a73553d4ecca646ab8c01b99",
+      "crop_box_px": [
+        1188,
+        1125,
+        2271,
+        1375
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 450,
+      "path": "full/bazmul-tafsir-p10-dpi450.png",
+      "dimensions": [
+        3719,
+        5263
+      ],
+      "bytes": 900774,
+      "sha256": "36f60f524d68f8eb34c01383556a56bd29860384bc2ff334b5cbfe6b64cdc3cf",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 450,
+      "path": "crops/bazmul-tafsir-p10-crop-dpi450.png",
+      "dimensions": [
+        1625,
+        374
+      ],
+      "bytes": 47668,
+      "sha256": "5d00fe7f025142af0c5d0e997653f988720ca29dc7acf07673728986eb141103",
+      "crop_box_px": [
+        1781,
+        1688,
+        3406,
+        2062
+      ]
+    },
+    {
+      "role": "full",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 600,
+      "path": "full/bazmul-tafsir-p10-dpi600.png",
+      "dimensions": [
+        4959,
+        7017
+      ],
+      "bytes": 1181158,
+      "sha256": "9da65359f52bb1d68fafb1855a8485f4a1b92e3af2c27210c7937f54fb5856a2",
+      "crop_box_px": null
+    },
+    {
+      "role": "crop",
+      "stem": "bazmul-tafsir-p10",
+      "dpi": 600,
+      "path": "crops/bazmul-tafsir-p10-crop-dpi600.png",
+      "dimensions": [
+        2167,
+        500
+      ],
+      "bytes": 67821,
+      "sha256": "da64f7130ab08318a25c9fcd2a3c7bfdaf1caf91aead66211e216a726780de3a",
+      "crop_box_px": [
+        2375,
+        2250,
+        4542,
+        2750
+      ]
+    }
+  ],
+  "legacy_baselines": [
+    {
+      "name": "ruhayli_legacy",
+      "path": "legacy-baseline/ruhayli-haqq-p35.png",
+      "dimensions": [
+        1190,
+        1684
+      ],
+      "bytes": 255078,
+      "sha256": "69c31d60088a72970c93da3975ebe519055c5284ed06f29fa18635606400a782"
+    },
+    {
+      "name": "ibrahim_bayan_legacy",
+      "path": "legacy-baseline/ibrahim-bayan-p35.png",
+      "dimensions": [
+        1753,
+        2480
+      ],
+      "bytes": 1289995,
+      "sha256": "d8e0a0f5063dcd86f0c94625fd789a1bea85290d37edfff492a27ae1193aceca"
+    },
+    {
+      "name": "bazmul_legacy",
+      "path": "legacy-baseline/bazmul-tafsir-p10.png",
+      "dimensions": [
+        1190,
+        1684
+      ],
+      "bytes": 205305,
+      "sha256": "ab22b4e2ded247d6a48d352607495d9485f1651b2b683385bc2bd9c86fe3a28b"
+    }
+  ]
+}

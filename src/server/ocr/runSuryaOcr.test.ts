@@ -4,6 +4,7 @@ import * as fsp from 'node:fs/promises';
 import path from 'node:path';
 import { jobDir, jobImagesDir, jobPdfPath } from '@/server/jobs/jobPaths';
 import { JobStore } from '@/server/jobs/jobStore';
+import { createRasterEnvelope } from '@/server/ocr/canonicalRaster';
 import { suryaBus } from '@/server/ocr/ocrEventBus';
 import { jobSuryaMetaPath, jobSuryaOcrJsonPath, jobSuryaPagesDir } from '@/server/ocr/ocrPaths';
 
@@ -257,6 +258,15 @@ describe('runSuryaOcr', () => {
         const page1 = JSON.parse(await fsp.readFile(path.join(jobSuryaPagesDir(jobId), '1.json'), 'utf8'));
         expect(page1.page).toBe(1);
         expect(page1.observations[0]?.text).toBe('السلام عليكم');
+        expect(page1.observations[0]).toMatchObject({
+            chars: [{ bbox: [10, 20, 20, 50], text: 'ا' }],
+            confidence: 0.95,
+            id: 'surya:page-1:line-0001',
+            rawText: 'السلام عليكم',
+            sourceRange: { length: 12, location: 0, unit: 'utf16' },
+            words: [{ bbox: [10, 20, 110, 50], text: 'السلام' }],
+        });
+        expect(page1.suggestedEdits).toEqual([]);
     });
 
     it('should mark job suryaOcr status as complete on success', async () => {
@@ -306,5 +316,32 @@ describe('runSuryaOcr', () => {
         expect(call?.args[0]).toBe('-c');
         expect(call?.args[1]).toContain('source');
         expect(call?.args[1]).toContain('surya-env');
+    });
+
+    it('uses a caller-provided canonical raster and records its provenance', async () => {
+        const bytes = Uint8Array.from(
+            Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAAxJREFUeJxjYGBgAAAABAAB9hc4VQAAAABJRU5ErkJggg==',
+                'base64',
+            ),
+        );
+        const envelope = createRasterEnvelope({
+            bytes,
+            crop: { height: 1, unit: 'normalized', width: 1, x: 0, y: 0 },
+            source: { page: 1, pdfSha256: 'pdf-source' },
+        });
+
+        await runSuryaOcr({ jobId, rasterInput: { bytes, envelope }, store });
+
+        const call = spawnCalls[0];
+        expect(call?.args[1]).toContain('input.png');
+        const page = JSON.parse(await fsp.readFile(path.join(jobSuryaPagesDir(jobId), '1.json'), 'utf8'));
+        expect(page.raster).toMatchObject({
+            consumedBy: 'surya',
+            consumedRasterSha256: envelope.sha256,
+            renderer: { version: '26.07.0' },
+            sha256: envelope.sha256,
+            source: { pdfSha256: 'pdf-source' },
+        });
     });
 });

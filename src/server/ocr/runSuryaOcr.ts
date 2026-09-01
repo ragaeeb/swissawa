@@ -6,6 +6,11 @@ import { readCropBox } from '@/server/crop/cropStore';
 import { jobPdfPath } from '@/server/jobs/jobPaths';
 import { writeJobSnapshot } from '@/server/jobs/jobSnapshot';
 import type { JobOcr, JobStore } from '@/server/jobs/jobStore';
+import {
+    assertCanonicalRasterInput,
+    type CanonicalRasterInput,
+    createEngineRasterEnvelope,
+} from '@/server/ocr/canonicalRaster';
 import { emitSuryaComplete, emitSuryaError, emitSuryaProgress } from '@/server/ocr/ocrEventBus';
 import { jobSuryaOcrDir, jobSuryaOcrJsonPath } from '@/server/ocr/ocrPaths';
 import { spawn } from '@/server/ocr/spawn';
@@ -14,6 +19,8 @@ import { cropPdfBytes } from '@/server/pdf/cropPdf';
 
 export type RunSuryaOcrParams = {
     jobId: string;
+    /** Optional shared canonical raster. When present, no per-engine PDF crop is created. */
+    rasterInput?: CanonicalRasterInput;
     store: JobStore;
     splitPages?: boolean; // default: true
 };
@@ -147,21 +154,29 @@ export async function runSuryaOcr(params: RunSuryaOcrParams): Promise<void> {
         const suryaDir = jobSuryaOcrDir(params.jobId);
         await fsp.mkdir(suryaDir, { recursive: true });
 
-        // Write cropped PDF to surya input directory
-        const inputPdfBytes = await getSuryaInputPdfBytes(params.jobId, params.store);
-        const inputPdfPath = path.join(suryaDir, 'input.pdf');
-        await fsp.writeFile(inputPdfPath, inputPdfBytes);
+        let inputPath = path.join(suryaDir, 'input.pdf');
+        let rasterEnvelope: ReturnType<typeof createEngineRasterEnvelope> | undefined;
+        if (params.rasterInput) {
+            assertCanonicalRasterInput(params.rasterInput);
+            inputPath = path.join(suryaDir, 'input.png');
+            await fsp.writeFile(inputPath, params.rasterInput.bytes);
+            rasterEnvelope = createEngineRasterEnvelope('surya', params.rasterInput.envelope);
+        } else {
+            // Preserve the legacy PDF path when no shared raster was supplied.
+            const inputPdfBytes = await getSuryaInputPdfBytes(params.jobId, params.store);
+            await fsp.writeFile(inputPath, inputPdfBytes);
+        }
 
         // Try MPS first, fallback to CPU if it fails
         let device: 'mps' | 'cpu' = 'mps';
         try {
-            await spawnSuryaOcr({ device, inputPdfPath, jobId: params.jobId, outputDir: suryaDir });
+            await spawnSuryaOcr({ device, inputPdfPath: inputPath, jobId: params.jobId, outputDir: suryaDir });
         } catch (err: unknown) {
             const errMsg = err instanceof Error ? err.message : String(err);
             if (errMsg.includes('MPS') || errMsg.includes('mps') || errMsg.includes('Metal')) {
                 console.warn('[surya.run.mps_fallback]', { jobId: params.jobId, reason: errMsg });
                 device = 'cpu';
-                await spawnSuryaOcr({ device, inputPdfPath, jobId: params.jobId, outputDir: suryaDir });
+                await spawnSuryaOcr({ device, inputPdfPath: inputPath, jobId: params.jobId, outputDir: suryaDir });
             } else {
                 throw err;
             }
@@ -179,12 +194,13 @@ export async function runSuryaOcr(params: RunSuryaOcrParams): Promise<void> {
         // Write filtered surya.json
         await fsp.writeFile(jobSuryaOcrJsonPath(params.jobId), JSON.stringify(filteredOutput, null, 2), 'utf8');
 
-        // Get pages array from the first (and usually only) file key
-        const fileKeys = Object.keys(filteredOutput);
-        const pages: SuryaPageOcrResult[] = fileKeys.length > 0 ? (filteredOutput[fileKeys[0]] ?? []) : [];
+        // Keep the compact aggregate for compatibility, but build paged output
+        // from the immutable raw result so confidence and localization evidence
+        // remain available for auditable edit proposals.
+        const pages: SuryaPageOcrResult[] = Object.values(rawOutput)[0] ?? [];
 
         if (splitPages) {
-            await splitSuryaOcrToPages({ outDir: suryaDir, pages });
+            await splitSuryaOcrToPages({ outDir: suryaDir, pages, raster: rasterEnvelope });
         }
 
         await updateSuryaOcrStatus(params.store, params.jobId, (s) => {

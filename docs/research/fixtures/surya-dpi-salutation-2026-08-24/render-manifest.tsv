@@ -1,0 +1,41 @@
+role	stem	dpi	path	dimensions	bytes	sha256	crop_box_px
+full	ruhayli-haqq-p35	144	full/ruhayli-haqq-p35-dpi144.png	1190x1684	255078	69c31d60088a72970c93da3975ebe519055c5284ed06f29fa18635606400a782	
+crop	ruhayli-haqq-p35	144	crops/ruhayli-haqq-p35-crop-dpi144.png	320x120	7527	e34d02a00f111eb206b779903fabe5b2be3e21e5708e8ee71e83c270b182af0a	[760, 285, 1080, 405]
+full	ruhayli-haqq-p35	200	full/ruhayli-haqq-p35-dpi200.png	1653x2339	466322	b3d03a76f3fad4764078185e1fd604866810b1f9d520096a853dc52a92f18b73	
+crop	ruhayli-haqq-p35	200	crops/ruhayli-haqq-p35-crop-dpi200.png	444x166	13344	21ccbc0adba117873a8ef6e5af54dd7248e31a6e3ab7073df3a376af2dd13a8f	[1056, 396, 1500, 562]
+full	ruhayli-haqq-p35	300	full/ruhayli-haqq-p35-dpi300.png	2480x3509	843230	14714a4aa3f36312bfc4540f9317f1e1500bc4a325abf918953aec2bd09821ce	
+crop	ruhayli-haqq-p35	300	crops/ruhayli-haqq-p35-crop-dpi300.png	667x250	24350	231d8d3720d8ec556718183a8021fd066c3ae616f6c1ddbc6e47bc89f33b28a9	[1583, 594, 2250, 844]
+full	ruhayli-haqq-p35	450	full/ruhayli-haqq-p35-dpi450.png	3719x5263	1390816	0ef955c4c598f1c5ab70e0e4f79f6dd7b64f2efba4df832f1872f67c0d00c7c7	
+crop	ruhayli-haqq-p35	450	crops/ruhayli-haqq-p35-crop-dpi450.png	1000x375	40873	cb8181d772ef78aafb2049cfc885c4ae4ccca225ba44937b1b522ba0a228a1cf	[2375, 891, 3375, 1266]
+full	ruhayli-haqq-p35	600	full/ruhayli-haqq-p35-dpi600.png	4959x7017	1970151	f8bec31624ae229ec0485025c312290ba85cc92434f8e03cd684b5fa14a67ca3	
+crop	ruhayli-haqq-p35	600	crops/ruhayli-haqq-p35-crop-dpi600.png	1333x500	57196	b43cf5070d7d2820f35b37b09c714eee74d399b544f5698cd9a1204e85950f38	[3167, 1188, 4500, 1688]
+full	ibrahim-bayan-p35	144	full/ibrahim-bayan-p35-dpi144.png	1753x2480	1207346	daec101f572eb859bedc3b5cebef9097825989f926e580ddc362d174f55d06d4	
+crop	ibrahim-bayan-p35	144	crops/ibrahim-bayan-p35-crop-dpi144.png	1400x160	77805	b646b3fc69d71ac09ec384bc50f3f538ec2a48a841f1055da2e9928d3dc2ab3f	[0, 890, 1400, 1050]
+full	ibrahim-bayan-p35	200	full/ibrahim-bayan-p35-dpi200.png	2435x3445	2050303	8da3fb566583ea6f175edec8ee83f1f2dd0b6a5f0bc8cef45b86eb1f1530315f	
+crop	ibrahim-bayan-p35	200	crops/ibrahim-bayan-p35-crop-dpi200.png	1944x222	132938	9b23e6cf8668c1a634528efbf0481c11e754943634cffeaafc9bdabbfa08cd59	[0, 1236, 1944, 1458]
+full	ibrahim-bayan-p35	300	full/ibrahim-bayan-p35-dpi300.png	3653x5167	646706	b553e3b6985daf3c9bbb647d79859865e4a37be813efa1c3832bcf293dd25738	
+crop	ibrahim-bayan-p35	300	crops/ibrahim-bayan-p35-crop-dpi300.png	2917x334	38275	4c68facb22ecc3822e75c578ec127b7c4a520d7bfc18229ec6bb3dd075c082db	[0, 1854, 2917, 2188]
+full	ibrahim-bayan-p35	450	full/ibrahim-bayan-p35-dpi450.png	5479x7750	753910	eb47f7d35cfb2524192368ec610edb936ac8785616c2b645414cd29ab456cb19	
+crop	ibrahim-bayan-p35	450	crops/ibrahim-bayan-p35-crop-dpi450.png	4375x500	46577	6ec0c888b91e2b192ea91cfc8062fd664ad5eb9d5288ee453525c2e2d454da0e	[0, 2781, 4375, 3281]
+full	ibrahim-bayan-p35	600	full/ibrahim-bayan-p35-dpi600.png	7305x10334	887039	3378cc902a2535c4e41ae8e6de7eef223bc521aa50391c00dc1b1da800875c8e	
+crop	ibrahim-bayan-p35	600	crops/ibrahim-bayan-p35-crop-dpi600.png	5833x667	54108	5004d1bee4cdc830635f2eb38d6947b3e0d3393d2e0970df0db67428d2d1299d	[0, 3708, 5833, 4375]
+full	ibrahim-takfer-p349	144	full/ibrahim-takfer-p349-dpi144.png	1191x1684	161833	5d90aa0b03c96aa7780a21a8c64606617f0e2d6dd1ad803272d9524c2614575f	
+crop	ibrahim-takfer-p349	144	crops/ibrahim-takfer-p349-crop-dpi144.png	790x100	15100	b201db9d6149627ab721e92f8bd6a81abf12395e3935c984e4867de402191257	[220, 1000, 1010, 1100]
+full	ibrahim-takfer-p349	200	full/ibrahim-takfer-p349-dpi200.png	1654x2339	246621	ad5c6e114ac89b752e0c1c9d1200532cef69dfeb24ee8e6c5f211cc57ef89648	
+crop	ibrahim-takfer-p349	200	crops/ibrahim-takfer-p349-crop-dpi200.png	1097x139	21925	7f5250b4e7ea90186bb93488b9c53875c777d3fef7808e86c5438eccefb9834c	[306, 1389, 1403, 1528]
+full	ibrahim-takfer-p349	300	full/ibrahim-takfer-p349-dpi300.png	2481x3508	408933	8e45585b949e25127ed92fd15f29b5e3e562fad113d9087f453b847954bb44a3	
+crop	ibrahim-takfer-p349	300	crops/ibrahim-takfer-p349-crop-dpi300.png	1646x209	36379	97496986a95507033a6e40c9b80488226747cda2a607cc2ec088ad9cf223386e	[458, 2083, 2104, 2292]
+full	ibrahim-takfer-p349	450	full/ibrahim-takfer-p349-dpi450.png	3721x5262	669386	426600c892b5abdb4f3f8674a2558ae672550cc1f94e8630cbeec5899a763b3c	
+crop	ibrahim-takfer-p349	450	crops/ibrahim-takfer-p349-crop-dpi450.png	2468x313	61878	ebc853162a8c888753b32e41ec414c40f281fb6c25d11c0e3ad6aef251c41aa7	[688, 3125, 3156, 3438]
+full	ibrahim-takfer-p349	600	full/ibrahim-takfer-p349-dpi600.png	4961x7016	938323	6fae86ccff733adaa3a736bb05badf2399c9df2e1c27e23524189766c4c37e99	
+crop	ibrahim-takfer-p349	600	crops/ibrahim-takfer-p349-crop-dpi600.png	3291x416	87928	08cdba7ff0697f8044241495d9afe635512609a2c6ba1bb59ce0aa179b7341e0	[917, 4167, 4208, 4583]
+full	bazmul-tafsir-p10	144	full/bazmul-tafsir-p10-dpi144.png	1190x1684	232816	e7186d4fdfc3fedfc2e97e3ea83c976904b944539aa224bdc9e0a5a637bcdec7	
+crop	bazmul-tafsir-p10	144	crops/bazmul-tafsir-p10-crop-dpi144.png	520x120	12514	e1560e84f88460b011e9e89c68e5b513dbb8ebc994fe2e7c3e9fedd008163cb0	[570, 540, 1090, 660]
+full	bazmul-tafsir-p10	200	full/bazmul-tafsir-p10-dpi200.png	1653x2339	346678	af967fc27cf10e875fc09c50fc59d05e9e322b157f07cfe2da72ef3a536c8682	
+crop	bazmul-tafsir-p10	200	crops/bazmul-tafsir-p10-crop-dpi200.png	722x167	17866	b83c6a031cf256f8d2e5413d4766f6438683bc504734c6d0d4227de9ef023ee6	[792, 750, 1514, 917]
+full	bazmul-tafsir-p10	300	full/bazmul-tafsir-p10-dpi300.png	2480x3509	506726	01bfab6f5006ec60256b4d35887396b934306704eee3009e677b1748dc9033f8	
+crop	bazmul-tafsir-p10	300	crops/bazmul-tafsir-p10-crop-dpi300.png	1083x250	28833	6c7a0b5d5ed4b801939dd037d785cdc04c72f263a73553d4ecca646ab8c01b99	[1188, 1125, 2271, 1375]
+full	bazmul-tafsir-p10	450	full/bazmul-tafsir-p10-dpi450.png	3719x5263	900774	36f60f524d68f8eb34c01383556a56bd29860384bc2ff334b5cbfe6b64cdc3cf	
+crop	bazmul-tafsir-p10	450	crops/bazmul-tafsir-p10-crop-dpi450.png	1625x374	47668	5d00fe7f025142af0c5d0e997653f988720ca29dc7acf07673728986eb141103	[1781, 1688, 3406, 2062]
+full	bazmul-tafsir-p10	600	full/bazmul-tafsir-p10-dpi600.png	4959x7017	1181158	9da65359f52bb1d68fafb1855a8485f4a1b92e3af2c27210c7937f54fb5856a2	
+crop	bazmul-tafsir-p10	600	crops/bazmul-tafsir-p10-crop-dpi600.png	2167x500	67821	da64f7130ab08318a25c9fcd2a3c7bfdaf1caf91aead66211e216a726780de3a	[2375, 2250, 4542, 2750]
